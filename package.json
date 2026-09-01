@@ -1,0 +1,11 @@
+{
+  "name": "shipledger-workspace",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm test --workspace shipledger",
+    "typecheck": "npm run typecheck --workspace shipledger",
+    "build": "npm run build --workspace shipledger"
+  }
+}
