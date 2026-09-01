@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://shipledger.dev/schemas/verified-changeset.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "cliVersion", "preset", "history", "configFingerprint", "changeset", "ranges", "commits", "items", "summary", "verdict", "violations"],
+  "properties": {
+    "version": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "cliVersion": { "type": "string", "minLength": 1 },
+    "preset": { "type": "string", "pattern": "^[a-z0-9-]+@[0-9]+$" },
+    "history": { "enum": ["first-parent", "all"] },
+    "configFingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "changeset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "items"],
+      "properties": {
+        "id": { "type": "string" },
+        "source": { "$ref": "https://shipledger.dev/schemas/changeset.schema.json#/properties/source" },
+        "items": { "$ref": "https://shipledger.dev/schemas/changeset.schema.json#/properties/items" }
+      }
+    },
+    "ranges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repo", "base", "baseSha", "head", "headSha", "include", "mergeBase", "baseIsAncestorOfHead", "commitsOnlyInBase", "findings"],
+        "properties": {
+          "repo": { "type": "string" },
+          "base": { "type": "string" },
+          "baseSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "head": { "type": "string" },
+          "headSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "include": { "type": "array", "items": { "type": "string" } },
+          "mergeBase": { "type": ["string", "null"] },
+          "baseIsAncestorOfHead": { "type": "boolean" },
+          "commitsOnlyInBase": { "type": "integer", "minimum": 0 },
+          "findings": { "type": "array", "items": { "enum": ["range-divergence"] } }
+        }
+      }
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repo", "sha", "subject", "body", "author", "committedAt", "ignored", "references", "findings"],
+        "properties": {
+          "repo": { "type": "string" },
+          "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "subject": { "type": "string" },
+          "body": { "type": "string" },
+          "author": { "type": "string" },
+          "committedAt": { "type": "string" },
+          "ignored": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["rule"],
+            "properties": { "rule": { "type": "string" } }
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["matcher", "token", "namespace", "sources", "resolvesTo"],
+              "properties": {
+                "matcher": { "type": "string" },
+                "token": { "type": "string" },
+                "namespace": { "enum": ["global", "repo"] },
+                "sources": { "type": "array", "minItems": 1, "items": { "enum": ["subject", "body"] } },
+                "resolvesTo": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "findings": { "type": "array", "items": { "enum": ["no-reference", "unknown-reference"] } }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "type", "status", "commits", "findings"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "type": { "type": "string" },
+          "status": { "type": "string" },
+          "commits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["repo", "sha"],
+              "properties": { "repo": { "type": "string" }, "sha": { "type": "string" } }
+            }
+          },
+          "findings": { "type": "array", "items": { "enum": ["item-without-commits"] } }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items", "itemsLinked", "commits", "commitsIgnored", "noReference", "unknownReference", "itemsWithoutCommits", "rangeDivergence"],
+      "properties": {
+        "items": { "type": "integer" },
+        "itemsLinked": { "type": "integer" },
+        "commits": { "type": "integer" },
+        "commitsIgnored": { "type": "integer" },
+        "noReference": { "type": "integer" },
+        "unknownReference": { "type": "integer" },
+        "itemsWithoutCommits": { "type": "integer" },
+        "rangeDivergence": { "type": "integer" }
+      }
+    },
+    "verdict": { "enum": ["pass", "fail"] },
+    "violations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding", "count"],
+        "properties": {
+          "finding": { "enum": ["no-reference", "unknown-reference", "item-without-commits", "range-divergence"] },
+          "count": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  }
+}
