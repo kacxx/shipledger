@@ -2,6 +2,7 @@
 import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { runCheck } from './check.js';
+import { runDoctor } from './doctor.js';
 
 function usage(): string {
   return [
@@ -21,6 +22,8 @@ export async function main(argv: string[]): Promise<number> {
   switch (command) {
     case 'check':
       return runCheck(rest, process.cwd());
+    case 'doctor':
+      return runDoctor(rest, process.cwd());
     case undefined:
     case '--help':
     case '-h':
