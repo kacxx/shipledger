@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { runCheck } from './check.js';
 import { runDoctor } from './doctor.js';
 import { runInit } from './init.js';
+import { runRender } from './render.js';
 
 function usage(): string {
   return [
@@ -27,6 +28,8 @@ export async function main(argv: string[]): Promise<number> {
       return runDoctor(rest, process.cwd());
     case 'init':
       return runInit(rest, process.cwd());
+    case 'render':
+      return runRender(rest, process.cwd());
     case undefined:
     case '--help':
     case '-h':
