@@ -1,18 +1,30 @@
 import { usageError } from './errors.js';
-import { FINDING_ORDER, summarise } from './core/findings.js';
+import { FINDING_ORDER, decideVerdict, summarise } from './core/findings.js';
 import { canonicalStringify } from './core/canonical.js';
 import type { FindingName, VerifiedChangeset } from './types.js';
 
 export function assertVerifiedSemantics(verified: VerifiedChangeset): void {
   const problems: string[] = [];
 
-  const commitIds = new Set(verified.commits.map((c) => `${c.repo}\u0000${c.sha}`));
+  const commitIds = new Set(verified.commits.map((c) => `${c.repo}\0${c.sha}`));
   const itemIds = new Set(verified.items.map((i) => i.id));
 
   const changesetIds = verified.changeset.items.map((i) => i.id);
   if (canonicalStringify(changesetIds) !== canonicalStringify(verified.items.map((i) => i.id))) {
     problems.push('items do not match the embedded changeset items, in id or in order');
   }
+
+  for (const item of verified.items) {
+    const csItem = verified.changeset.items.find((ci) => ci.id === item.id);
+    if (csItem) {
+      if (item.title !== csItem.title) problems.push(`item "${item.id}" title "${item.title}" differs from changeset "${csItem.title}"`);
+      if (item.type !== csItem.type) problems.push(`item "${item.id}" type "${item.type}" differs from changeset "${csItem.type}"`);
+      if (item.status !== csItem.status) problems.push(`item "${item.id}" status "${item.status}" differs from changeset "${csItem.status}"`);
+    }
+  }
+
+  const derivedLinks = new Map<string, Array<{ repo: string; sha: string }>>();
+  for (const item of verified.items) derivedLinks.set(item.id, []);
 
   for (const commit of verified.commits) {
     const where = `commit ${commit.repo} ${commit.sha.slice(0, 8)}`;
@@ -24,7 +36,14 @@ export function assertVerifiedSemantics(verified: VerifiedChangeset): void {
 
     for (const ref of commit.references) {
       for (const id of ref.resolvesTo) {
-        if (!itemIds.has(id)) problems.push(`${where} resolves ${ref.token} to "${id}", which is not an item`);
+        if (!itemIds.has(id)) {
+          problems.push(`${where} resolves ${ref.token} to "${id}", which is not an item`);
+        } else {
+          const bucket = derivedLinks.get(id)!;
+          if (!bucket.some((c) => c.repo === commit.repo && c.sha === commit.sha)) {
+            bucket.push({ repo: commit.repo, sha: commit.sha });
+          }
+        }
       }
     }
 
@@ -40,10 +59,16 @@ export function assertVerifiedSemantics(verified: VerifiedChangeset): void {
 
   for (const item of verified.items) {
     for (const link of item.commits) {
-      if (!commitIds.has(`${link.repo}\u0000${link.sha}`)) {
+      if (!commitIds.has(`${link.repo}\0${link.sha}`)) {
         problems.push(`item "${item.id}" links ${link.repo} ${link.sha.slice(0, 8)}, which is not present in commits`);
       }
     }
+
+    const derived = derivedLinks.get(item.id) ?? [];
+    if (canonicalStringify(item.commits) !== canonicalStringify(derived)) {
+      problems.push(`item "${item.id}" declares commits ${canonicalStringify(item.commits)} but references in commits imply ${canonicalStringify(derived)}`);
+    }
+
     const expected: FindingName[] = item.commits.length === 0 ? ['item-without-commits'] : [];
     if (canonicalStringify(item.findings) !== canonicalStringify(expected)) {
       problems.push(`item "${item.id}" declares findings [${item.findings.join(', ')}] but has ${item.commits.length} commit(s), implying [${expected.join(', ')}]`);
@@ -62,21 +87,15 @@ export function assertVerifiedSemantics(verified: VerifiedChangeset): void {
     problems.push(`summary does not match the commits, items, and ranges it describes (recomputed ${canonicalStringify(recomputed)})`);
   }
 
-  const actual = new Map<FindingName, number>();
-  for (const finding of FINDING_ORDER) {
-    const count = verified.commits.filter((c) => c.findings.includes(finding)).length
-      + verified.items.filter((i) => i.findings.includes(finding)).length
-      + verified.ranges.filter((r) => r.findings.includes(finding)).length;
-    actual.set(finding, count);
+  const { verdict: expectedVerdict, violations: expectedViolations } = decideVerdict({
+    commits: verified.commits, items: verified.items, ranges: verified.ranges,
+    policy: verified.policy
+  });
+  if (canonicalStringify(verified.violations) !== canonicalStringify(expectedViolations)) {
+    problems.push(`violations ${canonicalStringify(verified.violations)} do not match the policy and findings (expected ${canonicalStringify(expectedViolations)})`);
   }
-  for (const violation of verified.violations) {
-    if (actual.get(violation.finding) !== violation.count) {
-      problems.push(`violation "${violation.finding}" claims count ${violation.count} but ${actual.get(violation.finding)} finding(s) are present`);
-    }
-  }
-  const expectedVerdict = verified.violations.length > 0 ? 'fail' : 'pass';
   if (verified.verdict !== expectedVerdict) {
-    problems.push(`verdict "${verified.verdict}" contradicts ${verified.violations.length} violation(s)`);
+    problems.push(`verdict "${verified.verdict}" contradicts the policy and findings (expected "${expectedVerdict}")`);
   }
 
   if (problems.length > 0) {

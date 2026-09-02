@@ -10,7 +10,6 @@ let work: string;
 let entryPoint: string;
 
 beforeAll(() => {
-  execFileSync('npm', ['run', 'build'], { cwd: pkgDir, encoding: 'utf8', shell: true });
   work = mkdtempSync(join(tmpdir(), 'shipledger-pack-'));
   execFileSync('npm', ['pack', '--pack-destination', work], { cwd: pkgDir, encoding: 'utf8', shell: true });
   const tarball = readdirSync(work).find((f) => f.endsWith('.tgz'));

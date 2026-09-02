@@ -4,6 +4,7 @@
   "preset": "tracker-keys@1",
   "history": "first-parent",
   "configFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "policy": { "failOn": ["no-reference", "unknown-reference", "item-without-commits", "range-divergence"] },
   "changeset": {
     "id": "release 1.4.0",
     "source": { "kind": "test", "ref": "local", "fetchedAt": "2026-01-01T00:00:00Z" },
@@ -27,5 +28,5 @@
   ],
   "summary": { "items": 2, "itemsLinked": 1, "commits": 4, "commitsIgnored": 1, "noReference": 1, "unknownReference": 1, "itemsWithoutCommits": 1, "rangeDivergence": 1 },
   "verdict": "fail",
-  "violations": [{ "finding": "unknown-reference", "count": 1 }, { "finding": "item-without-commits", "count": 1 }, { "finding": "range-divergence", "count": 1 }]
+  "violations": [{ "finding": "no-reference", "count": 1 }, { "finding": "unknown-reference", "count": 1 }, { "finding": "item-without-commits", "count": 1 }, { "finding": "range-divergence", "count": 1 }]
 }

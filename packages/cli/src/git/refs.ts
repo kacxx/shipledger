@@ -1,7 +1,12 @@
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { envError } from '../errors.js';
 import { gitOut, gitStatus } from './exec.js';
 import type { RangeResult, RangeSpec } from '../types.js';
+
+const normalize = (p: string): string => {
+  try { return realpathSync(p); } catch { return resolve(p); }
+};
 
 export function assertUsableRepo(repoPath: string, repoName: string): void {
   if (!existsSync(repoPath)) {
@@ -10,6 +15,10 @@ export function assertUsableRepo(repoPath: string, repoName: string): void {
   const inTree = gitStatus(['rev-parse', '--is-inside-work-tree'], repoPath);
   if (inTree.code !== 0 || inTree.stdout.trim() !== 'true') {
     throw envError(`Repo "${repoName}" at ${repoPath} is not a git work tree.`);
+  }
+  const toplevel = gitOut(['rev-parse', '--show-toplevel'], repoPath).trim();
+  if (normalize(toplevel) !== normalize(repoPath)) {
+    throw envError(`Repo "${repoName}" path ${repoPath} is inside a git repository but is not its root (root is ${toplevel}). Point "path" at the repository root so include pathspecs resolve correctly.`);
   }
   if (gitOut(['rev-parse', '--is-shallow-repository'], repoPath).trim() === 'true') {
     throw envError(`Repo "${repoName}" at ${repoPath} is a shallow clone, so a commit range cannot be walked. Run: git -C ${repoPath} fetch --unshallow`);

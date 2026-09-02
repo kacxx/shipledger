@@ -52,5 +52,5 @@ function invokedDirectly(): boolean {
 }
 
 if (invokedDirectly()) {
-  main(process.argv.slice(2)).then((code) => process.exit(code));
+  main(process.argv.slice(2)).then((code) => { process.exitCode = code; });
 }

@@ -3,7 +3,7 @@
   "$id": "https://shipledger.dev/schemas/verified-changeset.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "cliVersion", "preset", "history", "configFingerprint", "changeset", "ranges", "commits", "items", "summary", "verdict", "violations"],
+  "required": ["version", "cliVersion", "preset", "history", "configFingerprint", "policy", "changeset", "ranges", "commits", "items", "summary", "verdict", "violations"],
   "properties": {
     "version": { "const": 1 },
     "generatedAt": { "type": "string", "format": "date-time" },
@@ -11,6 +11,17 @@
     "preset": { "type": "string", "pattern": "^[a-z0-9-]+@[0-9]+$" },
     "history": { "enum": ["first-parent", "all"] },
     "configFingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failOn"],
+      "properties": {
+        "failOn": {
+          "type": "array",
+          "items": { "enum": ["no-reference", "unknown-reference", "item-without-commits", "range-divergence"] }
+        }
+      }
+    },
     "changeset": {
       "type": "object",
       "additionalProperties": false,

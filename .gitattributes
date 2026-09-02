@@ -1,0 +1,2 @@
+# Golden test fixtures must stay LF so byte-for-byte comparison works on all platforms
+packages/cli/test/render/__golden__/*.txt text eol=lf

@@ -1,6 +1,6 @@
 shipledger report — release 1.4.0
 verdict: FAIL   preset: tracker-keys@1   history: first-parent
-violations: unknown-reference=1, item-without-commits=1, range-divergence=1
+violations: no-reference=1, unknown-reference=1, item-without-commits=1, range-divergence=1
 items 1/2 linked · commits 4 (1 ignored)
 
 WARN range repo-a v1.3.0..v1.4.0 — refs diverge; 2 commit(s) reachable from base but not head are invisible [expected-divergence: branches cut separately]

@@ -144,6 +144,7 @@ export interface VerifiedChangeset {
   preset: string;
   history: HistoryMode;
   configFingerprint: string;
+  policy: PolicyConfig;
   changeset: { id: string; source: ChangesetSource; items: ChangesetItem[] };
   ranges: RangeResult[];
   commits: CommitResult[];

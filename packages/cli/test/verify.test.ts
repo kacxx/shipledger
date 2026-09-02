@@ -60,16 +60,16 @@ describe('assertVerifiedSemantics', () => {
     expect(() => assertVerifiedSemantics(v)).toThrow(/summary/);
   });
 
-  it('rejects a verdict that contradicts the violations', () => {
+  it('rejects a verdict that contradicts the policy and findings', () => {
     const v = load();
     v.verdict = 'pass';
     expect(() => assertVerifiedSemantics(v)).toThrow(/verdict/);
   });
 
-  it('rejects a violation count that overstates the findings', () => {
+  it('rejects violations that do not match the policy and findings', () => {
     const v = load();
     v.violations = [{ finding: 'no-reference', count: 7 }];
-    expect(() => assertVerifiedSemantics(v)).toThrow(/count/);
+    expect(() => assertVerifiedSemantics(v)).toThrow(/violations/);
   });
 
   it('rejects item ids that disagree with the embedded changeset', () => {

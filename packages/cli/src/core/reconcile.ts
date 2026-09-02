@@ -73,6 +73,7 @@ export function reconcile(input: ReconcileInput): VerifiedChangeset {
     preset: `${config.presetName}@${config.presetVersion}`,
     history: config.history,
     configFingerprint: input.configFingerprint,
+    policy: config.policy,
     changeset: { id: changeset.id, source: changeset.source, items: changeset.items },
     ranges,
     commits,
