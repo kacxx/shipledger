@@ -148,15 +148,15 @@ The local MVP therefore trusts the dossier's storage owner and records the prove
 
 The first interface can expose conversational commands such as:
 
-- `/ship init`
-- `/ship status`
-- `/ship verify-release`
-- `/ship plan staging`
-- `/ship deploy staging`
-- `/ship verify staging`
-- `/ship plan production`
-- `/ship verify production`
-- `/ship resume <dossier>`
+- `ship init`
+- `ship status`
+- `ship verify-release`
+- `ship plan staging`
+- `ship deploy staging`
+- `ship verify staging`
+- `ship resume <dossier>`
+
+Production planning and verification are deferred to a later phase, so the first interface exposes no production commands.
 
 The agent explains the state and next valid transition. Deterministic tools validate and perform that transition.
 

@@ -197,7 +197,7 @@ Names are logical interfaces; final executable and plugin packaging are implemen
 
 - Validates the complete dossier.
 - Derives state from the artifact chain.
-- Reports stale, blocked, partial, and indeterminate conditions explicitly.
+- Reports stale, blocked, partial, verification-failed, and indeterminate conditions explicitly.
 - Performs no external writes.
 
 ### `ship plan staging`
