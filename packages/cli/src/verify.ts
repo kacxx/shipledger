@@ -1,5 +1,5 @@
 import { usageError } from './errors.js';
-import { FINDING_ORDER, decideVerdict, summarise } from './core/findings.js';
+import { decideVerdict, summarise } from './core/findings.js';
 import { canonicalStringify } from './core/canonical.js';
 import type { FindingName, VerifiedChangeset } from './types.js';
 
