@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "preset": "tracker-keys@1",
+  "repos": [{ "name": "pinned", "path": "FILLED_IN_BY_TEST" }],
+  "policy": { "failOn": ["unknown-reference"] }
+}

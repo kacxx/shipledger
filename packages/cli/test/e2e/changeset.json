@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "fixture 1.1.0",
+  "source": {
+    "kind": "manual-fixture",
+    "ref": "fixtures/deterministic.bundle v1.0.0..v1.1.0",
+    "fetchedAt": "2026-09-01T00:00:00Z"
+  },
+  "items": [
+    {
+      "id": "PROJ-1",
+      "title": "Add the widget",
+      "type": "story",
+      "status": "done",
+      "tokens": [
+        { "matcher": "ticket-key", "token": "PROJ-1" },
+        { "matcher": "pr-ref", "token": "#11", "repo": "pinned" }
+      ]
+    },
+    {
+      "id": "PROJ-2",
+      "title": "Fix the gadget",
+      "type": "bug",
+      "status": "done",
+      "tokens": [
+        { "matcher": "ticket-key", "token": "PROJ-2" },
+        { "matcher": "pr-ref", "token": "#12", "repo": "pinned" }
+      ]
+    },
+    {
+      "id": "PROJ-3",
+      "title": "Claimed but never landed",
+      "type": "story",
+      "status": "done",
+      "tokens": [{ "matcher": "ticket-key", "token": "PROJ-3" }]
+    }
+  ],
+  "ranges": [
+    { "repo": "pinned", "base": "v1.0.0", "head": "v1.1.0", "include": ["packages/a/**"] }
+  ]
+}
