@@ -1,0 +1,5 @@
+{
+  "name": "shipledger",
+  "version": "0.1.0",
+  "description": "Reconcile a claimed release changeset against git history, then render release artifacts from the verified result."
+}
