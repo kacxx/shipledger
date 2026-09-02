@@ -5,6 +5,7 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "test": "npm test --workspace shipledger",
+    "lint": "npm run lint --workspace shipledger",
     "typecheck": "npm run typecheck --workspace shipledger",
     "build": "npm run build --workspace shipledger"
   }

@@ -66,7 +66,7 @@ describe('assertNotesCoverFindings', () => {
   });
 
   it('rejects an omitted section as missing coverage rather than treating it as untriaged', () => {
-    const { noReference, ...rest } = complete();
+    const { noReference: _noReference, ...rest } = complete();
     expect(() => assertNotesCoverFindings(rest as NotesFile, verified)).toThrow(/missing/i);
   });
 

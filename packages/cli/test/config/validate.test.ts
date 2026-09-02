@@ -21,7 +21,7 @@ describe('validateConfig', () => {
   });
 
   it('requires preset', () => {
-    const { preset, ...rest } = config;
+    const { preset: _preset, ...rest } = config;
     expect(() => validateConfig(rest)).toThrow(/preset/);
   });
 
@@ -57,7 +57,7 @@ describe('validateChangeset', () => {
   });
 
   it('rejects an item missing tokens entirely', () => {
-    const { tokens, ...noTokens } = item();
+    const { tokens: _tokens, ...noTokens } = item();
     expect(() => validateChangeset({ ...changeset, items: [noTokens] })).toThrow(/tokens/);
   });
 

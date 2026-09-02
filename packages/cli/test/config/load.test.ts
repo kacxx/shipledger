@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, isAbsolute } from 'node:path';
+import { resolve } from 'node:path';
 import { mergeConfig, assertConfigIdentities, fingerprintConfig } from '../../src/config/load.js';
 import type { RawConfig } from '../../src/types.js';
 
