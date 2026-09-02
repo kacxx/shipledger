@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      # Requires the committed package-lock.json from Task 1.
+      - run: npm ci
+      # The fixture builder makes real commits; a runner with no git identity
+      # fails in a way that looks like a test bug.
+      - run: |
+          git config --global user.email "ci@example.invalid"
+          git config --global user.name "CI"
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
