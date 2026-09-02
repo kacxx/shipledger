@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { assertUsableRepo, resolveRange } from '../../src/git/refs.js';
 import { CliError } from '../../src/errors.js';
@@ -31,6 +31,23 @@ describe('assertUsableRepo', () => {
       expect((err as CliError).exitCode).toBe(3);
       expect((err as Error).message).toMatch(/repo-a/);
     }
+  });
+
+  it('accepts the repo root reached through a symlink', () => {
+    repo = makeRepo();
+    repo.commit('init');
+    const dir = mkdtempSync(join(tmpdir(), 'shipledger-link-'));
+    extras.push(dir);
+    const link = join(dir, 'linked-repo');
+    symlinkSync(repo.path, link, 'dir');
+    // git reports the real path, so a raw string comparison would reject this.
+    expect(() => assertUsableRepo(link, 'repo-a')).not.toThrow();
+  });
+
+  it('accepts the repo root given with a trailing separator', () => {
+    repo = makeRepo();
+    repo.commit('init');
+    expect(() => assertUsableRepo(`${repo.path}${sep}`, 'repo-a')).not.toThrow();
   });
 
   it('rejects a directory that is not a work tree', () => {

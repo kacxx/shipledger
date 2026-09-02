@@ -4,8 +4,23 @@ import { envError } from '../errors.js';
 import { gitOut, gitStatus } from './exec.js';
 import type { RangeResult, RangeSpec } from '../types.js';
 
+/**
+ * Two paths for the same directory must compare equal even when they reach it
+ * differently. `git rev-parse --show-toplevel` prints forward slashes on
+ * Windows while Node hands back backslashes, and a Windows temp directory
+ * often arrives as an 8.3 short name (RUNNER~1), so the raw strings differ for
+ * the same directory. realpathSync.native resolves short names and symlinks;
+ * the separator and case folding then make the comparison platform-correct.
+ */
 const normalize = (p: string): string => {
-  try { return realpathSync(p); } catch { return resolve(p); }
+  let resolved: string;
+  try {
+    resolved = realpathSync.native(p);
+  } catch {
+    try { resolved = realpathSync(p); } catch { resolved = p; }
+  }
+  resolved = resolve(resolved);
+  return process.platform === 'win32' ? resolved.replace(/\\/g, '/').toLowerCase() : resolved;
 };
 
 export function assertUsableRepo(repoPath: string, repoName: string): void {

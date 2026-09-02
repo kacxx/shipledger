@@ -29,8 +29,10 @@ describe('skill frontmatter', () => {
   const text = readFileSync(skill, 'utf8');
 
   it('starts with YAML frontmatter carrying name and description', () => {
-    expect(text.startsWith('---\n')).toBe(true);
-    const front = text.slice(4, text.indexOf('\n---', 4));
+    // A Windows checkout legitimately has CRLF line endings.
+    const lf = text.replace(/\r\n/g, '\n');
+    expect(lf.startsWith('---\n')).toBe(true);
+    const front = lf.slice(4, lf.indexOf('\n---', 4));
     expect(front).toMatch(/^name:\s*shipledger$/m);
     expect(front).toMatch(/^description:/m);
   });
