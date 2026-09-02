@@ -15,6 +15,7 @@ function usage(): string {
     '  doctor   --config <path> [--changeset <path>]',
     '  init     [--preset <name>] [--out <path>]',
     '  render   <report|changelog|release-notes> --input <path> [--notes <path>]',
+    '           [--verify-against-repos --config <path>]',
     ''
   ].join('\n');
 }

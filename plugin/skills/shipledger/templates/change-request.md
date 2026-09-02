@@ -1,6 +1,7 @@
 # Change request — {{changeset.id}}
 
-**Verified changeset fingerprint:** {{configFingerprint}}
+**Config fingerprint:** {{configFingerprint}} — covers the config and CLI version, not the commits. Cite the range SHAs below to identify what shipped.
+**Verified against repositories:** {{yes, with `render --verify-against-repos` | no}}
 **Preset / history:** {{preset}} / {{history}}
 **Claim source:** {{changeset.source.kind}} — {{changeset.source.ref}} (fetched {{changeset.source.fetchedAt}})
 **Verdict:** {{verdict}}

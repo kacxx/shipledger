@@ -39,14 +39,42 @@ credentials.
 **It is repository-read-only.** It never fetches, checks out, mutates a working
 tree, or makes a network call. It writes only the output files you name.
 
-**The artifact is reproducible, not tamper-proof.** `render` refuses a
-`verified-changeset.json` that contradicts itself — a stripped violation or a
-flipped verdict is caught — but signing is a deliberate non-goal, so an edit
-careful enough to also repair the summary will render. `configFingerprint`
-covers the config and CLI version, not the commits. What makes the artifact
-trustworthy is that you can re-run `check` and get the same bytes, so treat
-re-running it as the verification step, and cite the range SHAs it records
-when you need to identify a release.
+## Verifying an artifact you did not produce
+
+A `verified-changeset.json` is not self-proving, and signing it is a deliberate
+non-goal. There are three separate things you can know about one, and it is
+worth being clear which you have.
+
+**It agrees with itself.** Always checked, for free, on every `render`. A
+stripped violation, a flipped verdict, an item linked to a commit that is not
+in the file — all refused. This catches careless editing but not careful
+editing: delete some commits, repair the three summary counts to match, and the
+file is once again internally consistent.
+
+**It agrees with git.** This is what closes that gap:
+
+```bash
+shipledger render report --verify-against-repos --config shipledger.config.json
+```
+
+It re-walks the immutable SHAs the artifact recorded, re-derives every finding,
+item, count and verdict from what git actually says, and refuses to render
+unless the result comes back identical. A removed commit, an invented one, a
+doctored subject or author, a relabelled reference — each fails with the commit
+named. Ref *names* are allowed to have moved on since, because branches
+legitimately do; if `head` no longer points where the artifact says, that is
+reported rather than treated as a failure.
+
+Two fields are excluded from the comparison, since both differ innocently when
+someone else verifies from their own checkout: `generatedAt`, and
+`configFingerprint`, which covers the repo paths as written in your config. A
+differing fingerprint is reported. Verification is version-locked — an artifact
+from a different CLI version is refused by name rather than compared.
+
+**It agrees with your tracker.** Nothing local can tell you this. The claim is
+embedded in the artifact and taken on trust, because the second hop — this pull
+request closed that issue — is knowledge the forge has and git does not. That
+hop is the agent's job, and it is where a wrong answer will come from.
 
 ## Exit codes
 

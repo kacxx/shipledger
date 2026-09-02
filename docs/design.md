@@ -227,6 +227,8 @@ Identical sentences may be reused across records wherever they genuinely apply �
 
 Schemas enforce the fixed classification vocabulary and reject an empty or whitespace-only sentence. Beyond the schema, `render` also re-checks the verified artifact's internal consistency, so a hand-edited artifact whose summary contradicts its own commits is rejected rather than rendered.
 
+**Three levels of trust in an artifact, and only two are local.** Internal consistency is checked on every `render` and catches careless editing, but not careful editing: removing commits and repairing the summary counts to match leaves the file self-consistent. `render --verify-against-repos --config <path>` closes that by re-walking the immutable SHAs the artifact recorded, re-deriving every reference, finding, item, count and verdict from git, and refusing to render unless the result is identical. `generatedAt` and `configFingerprint` are excluded from that comparison because both differ innocently when a second person verifies from their own checkout — a differing fingerprint is reported rather than fatal, as is a ref name that has since moved, since branches legitimately advance. Verification is version-locked: an artifact from another CLI version is refused by name rather than compared, because reproducibility is only claimed within one version. What remains unverifiable locally is the tracker's claim itself, which is embedded and taken on trust; confirming that a pull request closed a given issue needs the forge, which is why it is the agent's job. This is not signing, which remains a non-goal — it is reproduction, and it requires the repositories rather than a key.
+
 ## Reconciliation semantics
 
 **What counts as a commit.** Default `history: "first-parent"`, which yields one entry per merged pull request on both squash-merge and merge-commit repositories rather than every intermediate commit. Set `history: "all"` for repositories that rebase-merge. `include` paths are applied as a pathspec on the same walk.
@@ -277,7 +279,7 @@ The tool claims that the same file inputs, resolved git object graph, and tool v
 | `shipledger init` | Scaffold a config from a preset |
 | `shipledger doctor` | Environment check against locally provable facts: repos present at the resolved paths, named refs resolvable, checkout not shallow, base/head ancestry, CLI/skill version compatibility |
 | `shipledger check` | Config + changeset → `verified-changeset.json` + verdict |
-| `shipledger render <report\|changelog\|release-notes>` | Verified changeset (+ optional notes) → artifact on stdout. Without `--notes` the artifact is marked untriaged; with `--notes` coverage must be exact |
+| `shipledger render <report\|changelog\|release-notes>` | Verified changeset (+ optional notes) → artifact on stdout. Without `--notes` the artifact is marked untriaged; with `--notes` coverage must be exact. `--verify-against-repos --config <path>` additionally re-derives the artifact from git and refuses to render unless it matches |
 
 ### Exit codes
 

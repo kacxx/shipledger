@@ -80,10 +80,46 @@ function resolveRef(ref: string, repoPath: string, repoName: string): string {
   return sha;
 }
 
-export function resolveRange(spec: RangeSpec, repoPath: string): RangeResult {
-  const baseSha = resolveRef(spec.base, repoPath, spec.repo);
-  const headSha = resolveRef(spec.head, repoPath, spec.repo);
+/**
+ * Resolves a name if it unambiguously names one commit, and returns null
+ * otherwise. Verification uses this to report whether a ref still points where
+ * the artifact says, which is information rather than grounds for failure —
+ * a branch moves on legitimately. Null covers both "gone" and "now ambiguous",
+ * since neither supports a claim either way.
+ */
+export function tryResolveRef(ref: string, repoPath: string): string | null {
+  try {
+    assertUnambiguous(ref, repoPath, '');
+  } catch {
+    return null;
+  }
+  const out = gitStatus(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], repoPath);
+  const sha = out.stdout.trim();
+  return out.code === 0 && /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+}
 
+/** Asserts a recorded sha is still a commit in this repo, for verification. */
+export function assertCommitExists(sha: string, repoPath: string, repoName: string, label: string): void {
+  const out = gitStatus(['rev-parse', '--verify', '--quiet', `${sha}^{commit}`], repoPath);
+  if (out.code !== 0 || out.stdout.trim() !== sha) {
+    throw envError(
+      `The ${label} sha ${sha} recorded in the artifact is not a commit in repo "${repoName}" (${repoPath}). ` +
+      `Either this is the wrong checkout or the commit has been removed from it.`
+    );
+  }
+}
+
+/**
+ * The facts about a base/head pair, derived from the shas rather than the ref
+ * names. Verification needs these for shas it already has, since the names may
+ * legitimately have moved on since the artifact was produced.
+ */
+export function rangeFactsFor(
+  spec: { repo: string; base: string; head: string; include: string[] },
+  baseSha: string,
+  headSha: string,
+  repoPath: string
+): RangeResult {
   const mergeBaseResult = gitStatus(['merge-base', baseSha, headSha], repoPath);
   if (mergeBaseResult.code !== 0 && mergeBaseResult.code !== 1) {
     throw envError(`git merge-base failed in ${repoPath} (status ${mergeBaseResult.code}): ${mergeBaseResult.stderr}`);
@@ -102,10 +138,19 @@ export function resolveRange(spec: RangeSpec, repoPath: string): RangeResult {
     repo: spec.repo,
     base: spec.base, baseSha,
     head: spec.head, headSha,
-    include: spec.include ?? [],
+    include: spec.include,
     mergeBase,
     baseIsAncestorOfHead,
     commitsOnlyInBase,
     findings: baseIsAncestorOfHead ? [] : ['range-divergence']
   };
+}
+
+export function resolveRange(spec: RangeSpec, repoPath: string): RangeResult {
+  const baseSha = resolveRef(spec.base, repoPath, spec.repo);
+  const headSha = resolveRef(spec.head, repoPath, spec.repo);
+  return rangeFactsFor(
+    { repo: spec.repo, base: spec.base, head: spec.head, include: spec.include ?? [] },
+    baseSha, headSha, repoPath
+  );
 }

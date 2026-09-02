@@ -129,8 +129,11 @@ commit, so two unknown references on one commit take separate dispositions. Reus
 the same sentence wherever it genuinely applies — forty dependency bumps may all
 say "routine dependency bump"; that is not a shortcut, it is the truth.
 
-`render` also re-checks the artifact's internal consistency, so a hand-edited
-`verified-changeset.json` is rejected rather than rendered.
+`render` also re-checks the artifact's internal consistency, so a carelessly
+hand-edited `verified-changeset.json` is rejected rather than rendered. Careful
+editing survives that check, so when you did not produce the artifact yourself
+in this session, add `--verify-against-repos --config shipledger.config.json`.
+That re-derives everything from git and refuses to render unless it matches.
 
 `unknown-reference` matters most: work shipped that this release does not claim.
 Never classify it as benign without evidence — name the release it belongs to, or
@@ -144,9 +147,19 @@ npx shipledger render changelog --input verified-changeset.json --notes notes.js
 npx shipledger render release-notes --input verified-changeset.json --notes notes.json
 ```
 
+For a change request, verify against the repositories first and say in the
+document whether you did:
+
+```bash
+npx shipledger render report --input verified-changeset.json --notes notes.json \
+  --verify-against-repos --config shipledger.config.json
+```
+
 Org-specific artifacts come from you, using `templates/change-request.md`. Fill
 every field from `verified-changeset.json` and `notes.json`. Do not invent test
-evidence, approvers, or rollback steps.
+evidence, approvers, or rollback steps. Report the config fingerprint as what it
+is — a fingerprint of the config and CLI version — and cite the range SHAs when
+the question is what shipped.
 
 ## Write discipline
 
