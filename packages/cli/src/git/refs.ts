@@ -25,7 +25,38 @@ export function assertUsableRepo(repoPath: string, repoName: string): void {
   }
 }
 
+/**
+ * Git resolves a bare name by searching these namespaces in order, and
+ * `--quiet` silences its ambiguity warning, so without this check a name
+ * matching several of them resolves to whichever git happens to prefer.
+ */
+const REF_NAMESPACES = ['refs/', 'refs/tags/', 'refs/heads/', 'refs/remotes/'];
+
+function assertUnambiguous(ref: string, repoPath: string, repoName: string): void {
+  // Only a bare name can be ambiguous; a revision expression resolves one way.
+  if (!/^[A-Za-z0-9._/-]+$/.test(ref)) return;
+
+  const matches: string[] = [];
+  const shas = new Set<string>();
+  for (const namespace of REF_NAMESPACES) {
+    const out = gitStatus(['rev-parse', '--verify', '--quiet', `${namespace}${ref}^{commit}`], repoPath);
+    const sha = out.stdout.trim();
+    if (out.code === 0 && /^[0-9a-f]{40}$/.test(sha)) {
+      matches.push(`${namespace}${ref} (${sha.slice(0, 12)})`);
+      shas.add(sha);
+    }
+  }
+
+  if (shas.size > 1) {
+    throw envError(
+      `Ref "${ref}" is ambiguous in repo "${repoName}" (${repoPath}): it matches ${matches.join(' and ')}, which are different commits. ` +
+      `Name it in full — "refs/tags/${ref}" or "refs/heads/${ref}" — so the range cannot depend on git's resolution order.`
+    );
+  }
+}
+
 function resolveRef(ref: string, repoPath: string, repoName: string): string {
+  assertUnambiguous(ref, repoPath, repoName);
   const out = gitStatus(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], repoPath);
   const sha = out.stdout.trim();
   if (out.code !== 0 || !/^[0-9a-f]{40}$/.test(sha)) {

@@ -94,4 +94,52 @@ describe('resolveRange', () => {
       expect((err as Error).message).toMatch(/v-nope/);
     }
   });
+
+  it('blocks a name that is both a branch and a tag at different commits', () => {
+    repo = makeRepo();
+    const first = repo.commit('one');
+    repo.commit('two');
+    repo.commit('three');
+    repo.run(['branch', 'v1.0', first]);
+    repo.tag('v1.0');
+
+    try {
+      resolveRange({ repo: 'repo-a', base: first, head: 'v1.0' }, repo.path);
+      throw new Error('should have thrown');
+    } catch (err) {
+      expect((err as CliError).exitCode).toBe(3);
+      expect((err as Error).message).toMatch(/ambiguous/);
+      // The remedy must name both candidates so the operator can choose.
+      expect((err as Error).message).toMatch(/refs\/tags\/v1\.0/);
+      expect((err as Error).message).toMatch(/refs\/heads\/v1\.0/);
+    }
+  });
+
+  it('allows a name that is a branch and a tag pointing at the same commit', () => {
+    repo = makeRepo();
+    const first = repo.commit('one');
+    repo.commit('two');
+    repo.branch('v1.0');
+    repo.tag('v1.0');
+    expect(() => resolveRange({ repo: 'repo-a', base: first, head: 'v1.0' }, repo.path)).not.toThrow();
+  });
+
+  it('leaves an unambiguous tag alone', () => {
+    repo = makeRepo();
+    const first = repo.commit('one');
+    repo.commit('two');
+    repo.tag('v1.0');
+    const out = resolveRange({ repo: 'repo-a', base: first, head: 'v1.0' }, repo.path);
+    expect(out.headSha).toBe(repo.head());
+  });
+
+  it('does not mistake a revision expression for an ambiguous name', () => {
+    repo = makeRepo();
+    repo.commit('one');
+    repo.commit('two');
+    repo.branch('v1.0');
+    repo.tag('v1.0');
+    // HEAD~1 contains an operator, so it can only resolve one way.
+    expect(() => resolveRange({ repo: 'repo-a', base: 'HEAD~1', head: 'HEAD' }, repo.path)).not.toThrow();
+  });
 });

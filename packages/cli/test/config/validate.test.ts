@@ -121,3 +121,51 @@ describe('validateNotes', () => {
     expect(validateNotes(notes).noReference).toHaveLength(2);
   });
 });
+
+describe('the date-time format', () => {
+  const withFetchedAt = (fetchedAt: string): unknown => ({
+    ...changeset, source: { ...changeset.source, fetchedAt }
+  });
+
+  const accepts = [
+    '2026-09-01T01:00:00Z',
+    '2026-09-01T01:00:00.123Z',
+    '2026-09-01T01:00:00+10:00',
+    '2026-09-01T01:00:00-05:30',
+    '2024-02-29T00:00:00Z',
+    '2026-06-30T23:59:60Z'
+  ];
+  for (const value of accepts) {
+    it(`accepts ${value}`, () => {
+      expect(() => validateChangeset(withFetchedAt(value))).not.toThrow();
+    });
+  }
+
+  // A shape-only regex would let every one of these through, and fetchedAt is
+  // provenance in an audit artifact.
+  const rejects: Array<[string, string]> = [
+    ['banana', 'not a timestamp at all'],
+    ['', 'empty'],
+    ['2026-13-01T00:00:00Z', 'month 13'],
+    ['2026-00-01T00:00:00Z', 'month 0'],
+    ['2026-09-31T00:00:00Z', 'September has 30 days'],
+    ['2026-02-29T00:00:00Z', '2026 is not a leap year'],
+    ['1900-02-29T00:00:00Z', '1900 is not a leap year despite dividing by 4'],
+    ['0000-00-00T00:00:00Z', 'all zeroes'],
+    ['2026-09-01T24:00:00Z', 'hour 24'],
+    ['2026-09-01T00:60:00Z', 'minute 60'],
+    ['2026-09-01T00:00:61Z', 'second 61'],
+    ['2026-09-01T00:00:00+24:00', 'offset hour 24'],
+    ['2026-09-01T00:00:00', 'no offset'],
+    ['2026-09-01t00:00:00z', 'lowercase designators are not accepted']
+  ];
+  for (const [value, why] of rejects) {
+    it(`rejects ${JSON.stringify(value)} — ${why}`, () => {
+      expect(() => validateChangeset(withFetchedAt(value))).toThrow(CliError);
+    });
+  }
+
+  it('accepts 2000-02-29, which the 400-year rule makes a leap day', () => {
+    expect(() => validateChangeset(withFetchedAt('2000-02-29T00:00:00Z'))).not.toThrow();
+  });
+});
