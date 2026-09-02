@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "id": "v1.4.0 milestone",
+  "source": {
+    "kind": "github-milestone",
+    "ref": "https://github.com/example/repo-a/milestone/7",
+    "fetchedAt": "2026-09-01T01:00:00Z"
+  },
+  "items": [
+    {
+      "id": "example/repo-a#100",
+      "title": "Handle empty range gracefully",
+      "type": "issue",
+      "status": "closed",
+      "url": "https://github.com/example/repo-a/issues/100",
+      "tokens": [
+        { "matcher": "pr-ref", "token": "#100", "repo": "repo-a" },
+        { "matcher": "pr-ref", "token": "#123", "repo": "repo-a" }
+      ]
+    }
+  ],
+  "ranges": [{ "repo": "repo-a", "base": "v1.3.0", "head": "v1.4.0" }]
+}

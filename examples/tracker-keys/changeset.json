@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "release 1.4.0",
+  "source": {
+    "kind": "tracker-release",
+    "ref": "https://tracker.example.invalid/projects/PROJ/versions/1234",
+    "fetchedAt": "2026-09-01T01:00:00Z"
+  },
+  "items": [
+    {
+      "id": "PROJ-42",
+      "title": "Handle empty range gracefully",
+      "type": "story",
+      "status": "done",
+      "url": "https://tracker.example.invalid/browse/PROJ-42",
+      "tokens": [{ "matcher": "ticket-key", "token": "PROJ-42" }]
+    },
+    {
+      "id": "PROJ-77",
+      "title": "Warn on divergent ranges",
+      "type": "bug",
+      "status": "done",
+      "url": "https://tracker.example.invalid/browse/PROJ-77",
+      "tokens": [
+        { "matcher": "ticket-key", "token": "PROJ-77" },
+        { "matcher": "pr-ref", "token": "#312", "repo": "repo-b" }
+      ]
+    }
+  ],
+  "ranges": [
+    { "repo": "repo-a", "base": "v1.3.0", "head": "v1.4.0" },
+    { "repo": "repo-b", "base": "release/1.3", "head": "release/1.4", "include": ["packages/thing/**"] }
+  ]
+}
