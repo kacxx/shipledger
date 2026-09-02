@@ -1,0 +1,20 @@
+# release 1.4.0
+
+## Changes
+
+- **PROJ-1** Add the thing (2 commits)
+
+## Unaccounted commits
+
+- `repo-a bbbbbbbb` PROJ-1 and PROJ-9 together (refs PROJ-9) — other-release
+- `repo-a cccccccc` tidy up — tooling-or-ci
+
+## Claimed but not found in git
+
+- **PROJ-2** Claimed but absent — not-done
+
+## Incomplete ranges
+
+- `repo-a` v1.3.0..v1.4.0 — 2 commit(s) only in base are not represented — expected-divergence
+
+_Generated from a verified changeset (sha256:0000000000000000000000000000000000000000000000000000000000000000, preset tracker-keys@1). 1 commit ignored by configured rules._

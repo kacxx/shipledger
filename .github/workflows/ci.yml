@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS and Windows are here for the path handling: the entry-point
+        # check and repo-root comparison resolve symlinks and file URLs, which
+        # only ubuntu would never exercise.
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      # Relies on the committed package-lock.json.
+      - run: npm ci
+      # The fixture builder makes real commits; a runner with no git identity
+      # fails in a way that looks like a test bug.
+      - run: |
+          git config --global user.email "ci@example.invalid"
+          git config --global user.name "CI"
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

@@ -1,0 +1,11 @@
+{
+  "tags": { "base": "v1.0.0", "head": "v1.1.0" },
+  "commits": [
+    { "sha": "133b17091e43b81aab83f7f374d784f204cb6ee8", "author": "Fixture", "subject": "PROJ-1: add the widget (#11)" },
+    { "sha": "a124d4f3bf6f0b893d675dd18fa3af50daa079c4", "author": "Fixture", "subject": "PROJ-2: fix the gadget (#12)" },
+    { "sha": "88cf2a8b800fad41ffea264fc16a19fb37ca9aa0", "author": "Fixture", "subject": "PROJ-9: unrelated work (#13)" },
+    { "sha": "341818c50b9007fae948b6f0d6045c468ae3a067", "author": "Fixture", "subject": "chore: reformat everything" },
+    { "sha": "3fea5d82d022ab395de8dcfa4c7d7ef6bf90dbba", "author": "Fixture", "subject": "docs: only touches package b (#14)" },
+    { "sha": "424b5083842fb557c4e53dc907d21dce63edbd07", "author": "dependabot[bot]", "subject": "chore(deps): bump left-pad" }
+  ]
+}

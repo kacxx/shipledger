@@ -30,7 +30,7 @@ Changelog generation from git is well served — `git-cliff`, `release-please`, 
 
 Public open source. Two first-class workflows, both supported and both exercised in CI:
 
-- **`github-oss`** — the changeset is a milestone or draft release; items are issues and pull requests; commit hygiene is inconsistent, so commits carrying no reference at all are normal and not a failure.
+- **`github-oss`** — the changeset is a milestone or draft release; items are issues and pull requests; commit hygiene is inconsistent, so commits carrying no reference at all are normal and not a failure, and neither is a milestone issue that closed without code.
 - **`tracker-keys`** — the changeset is a tracker release (Jira fixVersion or equivalent); items carry keys like `PROJ-42`; a commit with no reference is a process defect worth failing on.
 
 Supporting both keeps the abstraction honest. A design validated against only one of them would quietly encode that one's assumptions.
@@ -97,7 +97,19 @@ Ignore authors are exact Git author names (`%an`), not formatted name-and-email 
 
 `preset` supplies defaults for `matchers`, `history`, `ignore`, and `policy`. Merge semantics are deliberately blunt: **a key present in the config replaces the preset's value entirely**, including objects and arrays, which are never deep-merged or concatenated. An override object must therefore be complete according to its schema. Presets are versioned (`tracker-keys@1`), and `preset` is required in durable config. `check` and `doctor` reject an unversioned preset; `init` may accept the convenience name `tracker-keys`, but writes the resolved pinned form into the generated config.
 
-`failOn` keys are the finding names defined under *Reconciliation semantics*: `no-reference`, `unknown-reference`, `item-without-commits`, and `range-divergence`. `tracker-keys@1` fails on all four. `github-oss@1` permits `no-reference`, because a drive-by fix with no issue is normal in open source, but fails on the other three. An adopter may deliberately omit `range-divergence` in a complete replacement policy; that committed, fingerprinted policy is the explicit waiver.
+`failOn` keys are the finding names defined under *Reconciliation semantics*: `no-reference`, `unknown-reference`, `item-without-commits`, and `range-divergence`.
+
+`tracker-keys@1` fails on all four. Under a tracker, a commit without a ticket key is a process defect and a ticket without commits is a false claim, so both are worth blocking on.
+
+`github-oss@1` fails on **`unknown-reference` and `range-divergence` only**:
+
+```json
+{ "failOn": ["unknown-reference", "range-divergence"] }
+```
+
+It permits `no-reference`, because a drive-by fix with no issue is normal in open source. It also permits `item-without-commits`, because milestone issues closed as duplicate, wontfix, or documentation-only routinely carry no code — treating that as fatal would make the tool fail on healthy projects, which trains adopters to ignore it. Both findings are still emitted in `verified-changeset.json` and still rendered; they are reported signals rather than gate failures. What remains fatal is narrower and sharper: an identifier that appears in git but not in the release, or a range that cannot be walked completely.
+
+An adopter may deliberately omit `range-divergence` in a complete replacement policy; that committed, fingerprinted policy is the explicit waiver.
 
 ### `changeset.json` — ephemeral, per release, written by the agent
 
@@ -196,7 +208,26 @@ The verified artifact is self-contained renderer input. It records the resolved 
 
 ### `notes.json` — optional, produced by the agent's triage
 
-Stores a required classification and non-empty explanatory sentence for each triaged finding. No-reference findings are keyed by commit; unknown-reference findings are keyed by their commit and reference tuple; item findings are keyed by item id; range findings are keyed by repo, which is unique in V1. This allows two unknown references on one commit to receive different dispositions. Schemas enforce the fixed classification vocabulary, and `render` rejects notes that do not identify a finding in the verified artifact. Passed to `render`, the notes keep judgement outside the deterministic core while making that judgement auditable.
+Stores a required classification and explanatory sentence for each triaged finding, keeping judgement outside the deterministic core while making that judgement auditable.
+
+**Shape: four sections, each an array of structured records.** Not objects keyed by a composite string. Each record carries the fields that identify its finding as separate properties:
+
+| Section | Identifies its finding by | Record fields |
+| --- | --- | --- |
+| `noReference` | a commit | `repo`, `sha` |
+| `unknownReference` | a commit and reference tuple | `repo`, `sha`, `matcher`, `token` |
+| `items` | an item | `item` |
+| `ranges` | a repo, unique in V1 | `repo` |
+
+Arrays rather than keyed maps because matcher ids and tokens are unconstrained text: any single-character delimiter can be forged into a collision, so `repo:sha:matcher:token` is not a safe key. Identifying `unknownReference` records by the full reference tuple rather than the commit alone still allows two unknown references on one commit to receive different dispositions.
+
+**Coverage is exact, and supplying notes is all-or-nothing.** Omitting `--notes` is a legitimate, first-class choice: the artifact renders with an explicit untriaged marker, which is an honest statement that the findings have not been dispositioned. Supplying `--notes` is a claim that they have been, and is held to it. Every finding in the artifact must have exactly one record; a record naming a finding the artifact does not contain, a duplicate record for one finding, or a whitespace-only sentence is an error. A partial triage presented as a complete one is worse than no triage, because it silently understates what was left unexamined.
+
+Identical sentences may be reused across records wherever they genuinely apply — forty dependency bumps sharing one disposition is the truth, not a shortcut.
+
+Schemas enforce the fixed classification vocabulary and reject an empty or whitespace-only sentence. Beyond the schema, `render` also re-checks the verified artifact's internal consistency, so a hand-edited artifact whose summary contradicts its own commits is rejected rather than rendered.
+
+**Three levels of trust in an artifact, and only two are local.** Internal consistency is checked on every `render` and catches careless editing, but not careful editing: removing commits and repairing the summary counts to match leaves the file self-consistent. `render --verify-against-repos --config <path>` closes that by re-walking the immutable SHAs the artifact recorded, re-deriving every reference, finding, item, count and verdict from git, and refusing to render unless the result is identical. `generatedAt` and `configFingerprint` are excluded from that comparison because both differ innocently when a second person verifies from their own checkout — a differing fingerprint is reported rather than fatal, as is a ref name that has since moved, since branches legitimately advance. Verification is version-locked: an artifact from another CLI version is refused by name rather than compared, because reproducibility is only claimed within one version. What remains unverifiable locally is the tracker's claim itself, which is embedded and taken on trust; confirming that a pull request closed a given issue needs the forge, which is why it is the agent's job. This is not signing, which remains a non-goal — it is reproduction, and it requires the repositories rather than a key.
 
 ## Reconciliation semantics
 
@@ -248,7 +279,7 @@ The tool claims that the same file inputs, resolved git object graph, and tool v
 | `shipledger init` | Scaffold a config from a preset |
 | `shipledger doctor` | Environment check against locally provable facts: repos present at the resolved paths, named refs resolvable, checkout not shallow, base/head ancestry, CLI/skill version compatibility |
 | `shipledger check` | Config + changeset → `verified-changeset.json` + verdict |
-| `shipledger render <report\|changelog\|release-notes>` | Verified changeset (+ optional notes) → artifact on stdout |
+| `shipledger render <report\|changelog\|release-notes>` | Verified changeset (+ optional notes) → artifact on stdout. Without `--notes` the artifact is marked untriaged; with `--notes` coverage must be exact. `--verify-against-repos --config <path>` additionally re-derives the artifact from git and refuses to render unless it matches |
 
 ### Exit codes
 
@@ -288,6 +319,8 @@ The skill owns the four things the CLI cannot do:
    - `item-without-commits` → configuration only, documentation only, landed in an earlier release, wrongly tagged, not actually done
    - `range-divergence` → expected for independently cut branches, or a sign the wrong base was chosen
 
+   Triage is all-or-nothing, per *`notes.json`* above. If the skill cannot disposition every finding, it must omit notes entirely and render an explicitly untriaged artifact rather than submit partial coverage.
+
 The skill never decides a match. Matching is deterministic and belongs to the CLI. The plugin declares and pins a compatible CLI version range; `doctor` reports incompatibility before checking a release.
 
 Org-specific artifacts — a change request, an evidence bundle, a release summary — are rendered by the agent from templates shipped in the plugin. The boundary is easy to police: mechanical projections of the JSON belong to the CLI; anything needing judgement or house style belongs to the agent.
@@ -298,19 +331,21 @@ Org-specific artifacts — a change request, an evidence bundle, a release summa
 | --- | --- |
 | `core` | Unit tests entirely from fixtures, including tuple scope, normalization, many-to-many resolution, duplicate identities, and mixed resolved/unresolved references |
 | `git` | Real throwaway repositories covering squash, merge-commit, rebase, nested pathspecs, divergence, mutable-ref movement after resolution, and lossless commit-body parsing |
-| Renderers | Strict verified-input validation and golden files under `--stable`, covering every finding and triage target |
+| Renderers | Strict verified-input validation, semantic validation of the artifact, note-coverage failures, and committed golden files under `--stable`, covering every finding, every triage target, and the untriaged case |
 | CLI | Exit-code assertions for every failure class and command |
 | End to end | A **git bundle** at fixed refs with no placeholders; tests assert exact expected links, findings, SHAs, and byte-stable output |
 | Packaging | `npm pack` installation smoke test invokes every public command; plugin manifest is validated through Cursor's normal `skills/` discovery contract |
 
 The end-to-end fixture is a bundle rather than vendored `git log` text, because the CLI's whole job is to walk a real repository — text output cannot exercise ref resolution, ancestry, shallowness detection, or pathspec filtering, which is most of what could go wrong. A bundle is a single self-contained file, keeps CI offline and deterministic, and still exercises the real code path end to end.
 
+The bundle is **synthetic**, built by a committed script that fixes author, email, commit dates, and file content. That is what makes the SHAs deterministic, and therefore what makes the exact-SHA assertions above possible: a vendored third-party repository would force those assertions to be pasted from observation rather than derived, which tests nothing about correctness.
+
 ## Repo layout and packaging
 
 ```
 packages/cli/      published to npm
 plugin/            skill + artifact templates (Claude Code / Cursor plugin)
-fixtures/          git bundle of the pinned public repo, plus core test fixtures
+fixtures/          deterministic git bundle built by fixtures/make-bundle.sh, plus core test fixtures
 examples/          one config per preset
 docs/
 ```

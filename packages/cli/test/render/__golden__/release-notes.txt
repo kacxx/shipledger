@@ -1,0 +1,7 @@
+## release 1.4.0
+
+### story
+
+* Add the thing (PROJ-1)
+
+<sub>1/2 claimed items verified against git · 4 commits · 1 commit(s) reference other releases · 1 unreferenced · 1 claimed with no code · 1 incomplete range(s) · at least one claimed item was not done</sub>

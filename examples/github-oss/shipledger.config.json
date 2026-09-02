@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "preset": "github-oss@1",
+  "repos": [{ "name": "repo-a", "path": "../repo-a" }]
+}

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "preset": "tracker-keys@1",
+  "repos": [
+    { "name": "repo-a", "path": "../repo-a" },
+    { "name": "repo-b", "path": "../repo-b" }
+  ],
+  "policy": { "failOn": ["no-reference", "unknown-reference", "item-without-commits", "range-divergence"] }
+}

@@ -1,0 +1,21 @@
+shipledger report — release 1.4.0
+verdict: FAIL   preset: tracker-keys@1   history: first-parent
+violations: no-reference=1, unknown-reference=1, item-without-commits=1, range-divergence=1
+items 1/2 linked · commits 4 (1 ignored)
+triage: UNTRIAGED — no notes supplied
+
+WARN range repo-a v1.3.0..v1.4.0 — refs diverge; 2 commit(s) reachable from base but not head are invisible
+
+Commits referencing work outside this release (1):
+  repo-a bbbbbbbb · PROJ-1 and PROJ-9 together
+    → PROJ-9 (ticket-key, seen in subject)
+    also linked to PROJ-1
+
+Commits with no reference (1):
+  repo-a cccccccc · tidy up
+
+Items claimed with no commits (1):
+  PROJ-2 · Claimed but absent
+
+Ignored (1):
+  repo-a dddddddd · Merge branch main — subjects:^Merge branch
