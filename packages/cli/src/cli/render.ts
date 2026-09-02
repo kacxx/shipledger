@@ -36,7 +36,7 @@ function readJson(path: string, label: string): unknown {
 export function runRender(argv: string[], cwd: string): number {
   try {
     const [format, ...rest] = argv;
-    if (format === undefined || !(format in RENDERERS)) {
+    if (format === undefined || !Object.hasOwn(RENDERERS, format)) {
       throw usageError(`Unknown format "${format ?? ''}". Use one of: ${Object.keys(RENDERERS).join(', ')}.`);
     }
 

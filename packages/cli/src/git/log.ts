@@ -1,5 +1,6 @@
 import { envError } from '../errors.js';
 import { gitOut } from './exec.js';
+import { isGitSha } from './sha.js';
 import type { CommitRecord, HistoryMode, RangeResult } from '../types.js';
 
 const FIELDS = 5;
@@ -22,7 +23,7 @@ export function parseLogOutput(raw: string, repo: string, repoPath: string): Com
   const out: CommitRecord[] = [];
   for (let i = 0; i < parts.length; i += FIELDS) {
     const sha = (parts[i] as string).trim();
-    if (!/^[0-9a-f]{40}$/.test(sha)) {
+    if (!isGitSha(sha)) {
       fail(`expected a commit sha in field ${i}, got ${JSON.stringify(sha.slice(0, 48))}`);
     }
     out.push({

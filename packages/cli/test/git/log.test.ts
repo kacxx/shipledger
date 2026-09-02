@@ -141,6 +141,13 @@ describe('parseLogOutput framing', () => {
     expect(out[0]?.sha).toBe(sha);
   });
 
+  it('accepts a 64-char sha256 object name', () => {
+    const sha256 = 'a'.repeat(64);
+    const out = parseLogOutput(`${record(sha256)}\n`, 'r', '/tmp/x');
+    expect(out).toHaveLength(1);
+    expect(out[0]?.sha).toBe(sha256);
+  });
+
   it('parses two records, absorbing the inter-record newline into the sha field', () => {
     const b = 'b'.repeat(40);
     const out = parseLogOutput(`${record(sha)}\n${record(b)}\n`, 'r', '/tmp/x');

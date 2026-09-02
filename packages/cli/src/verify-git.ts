@@ -4,6 +4,7 @@ import { compileAll } from './core/compile.js';
 import { reconcile } from './core/reconcile.js';
 import { assertCommitExists, assertUsableRepo, rangeFactsFor, tryResolveRef } from './git/refs.js';
 import { walkRange } from './git/log.js';
+import { commitKey } from './notes.js';
 import type {
   Changeset, CommitRecord, RangeResult, ResolvedConfig, VerifiedChangeset
 } from './types.js';
@@ -26,14 +27,13 @@ export interface GitVerification {
   fingerprintDiffers: boolean;
 }
 
-const commitKey = (c: { repo: string; sha: string }): string => `${c.repo}\0${c.sha}`;
 const show = (c: { repo: string; sha: string }): string => `${c.repo} ${c.sha.slice(0, 8)}`;
 
 function describeDifference(artifact: VerifiedChangeset, recomputed: VerifiedChangeset): string[] {
   const problems: string[] = [];
 
-  const claimed = new Map(artifact.commits.map((c) => [commitKey(c), c]));
-  const actual = new Map(recomputed.commits.map((c) => [commitKey(c), c]));
+  const claimed = new Map(artifact.commits.map((c) => [commitKey(c.repo, c.sha), c]));
+  const actual = new Map(recomputed.commits.map((c) => [commitKey(c.repo, c.sha), c]));
 
   for (const [key, commit] of actual) {
     if (!claimed.has(key)) problems.push(`${show(commit)} is in the range but missing from the artifact`);

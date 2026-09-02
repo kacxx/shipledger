@@ -1,13 +1,8 @@
-import type { CommitRecord, CommitSource, Normalize, Reference } from '../types.js';
+import type { CommitRecord, CommitSource, Reference } from '../types.js';
 import type { CompiledMatcher } from './compile.js';
+import { applyNormalize } from './normalize.js';
 
 const SOURCE_ORDER: CommitSource[] = ['subject', 'body'];
-
-function applyNormalize(token: string, normalize: Normalize): string {
-  if (normalize === 'upper') return token.toUpperCase();
-  if (normalize === 'lower') return token.toLowerCase();
-  return token;
-}
 
 export function extractReferences(commit: CommitRecord, matchers: CompiledMatcher[]): Reference[] {
   const order: string[] = [];
@@ -17,7 +12,6 @@ export function extractReferences(commit: CommitRecord, matchers: CompiledMatche
     for (const source of SOURCE_ORDER) {
       if (!config.sources.includes(source)) continue;
       const text = source === 'subject' ? commit.subject : commit.body;
-      regex.lastIndex = 0;
       for (const match of text.matchAll(regex)) {
         const captured = match[1];
         if (captured === undefined) continue;
@@ -41,9 +35,7 @@ export function extractReferences(commit: CommitRecord, matchers: CompiledMatche
     }
   }
 
-  const out = order.map((key) => byKey.get(key) as Reference);
-  for (const ref of out) {
-    ref.sources.sort((a, b) => SOURCE_ORDER.indexOf(a) - SOURCE_ORDER.indexOf(b));
-  }
-  return out;
+  // sources are pushed in SOURCE_ORDER as it is iterated, so they are already
+  // ordered — no post-sort is needed.
+  return order.map((key) => byKey.get(key) as Reference);
 }

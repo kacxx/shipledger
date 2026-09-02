@@ -1,12 +1,13 @@
 import { usageError } from './errors.js';
 import { decideVerdict, summarise } from './core/findings.js';
 import { canonicalStringify } from './core/canonical.js';
+import { commitKey } from './notes.js';
 import type { FindingName, VerifiedChangeset } from './types.js';
 
 export function assertVerifiedSemantics(verified: VerifiedChangeset): void {
   const problems: string[] = [];
 
-  const commitIds = new Set(verified.commits.map((c) => `${c.repo}\0${c.sha}`));
+  const commitIds = new Set(verified.commits.map((c) => commitKey(c.repo, c.sha)));
   const itemIds = new Set(verified.items.map((i) => i.id));
 
   const changesetIds = verified.changeset.items.map((i) => i.id);
@@ -59,7 +60,7 @@ export function assertVerifiedSemantics(verified: VerifiedChangeset): void {
 
   for (const item of verified.items) {
     for (const link of item.commits) {
-      if (!commitIds.has(`${link.repo}\0${link.sha}`)) {
+      if (!commitIds.has(commitKey(link.repo, link.sha))) {
         problems.push(`item "${item.id}" links ${link.repo} ${link.sha.slice(0, 8)}, which is not present in commits`);
       }
     }

@@ -1,15 +1,10 @@
-import type { Changeset, MatcherConfig, Namespace, Normalize, Reference } from '../types.js';
+import type { Changeset, MatcherConfig, Namespace, Reference } from '../types.js';
+import { applyNormalize } from './normalize.js';
 
 export type ItemIndex = Map<string, string[]>;
 
 export function scopeKeyFor(namespace: Namespace, repo: string): string {
   return namespace === 'global' ? 'global' : repo;
-}
-
-function applyNormalize(token: string, normalize: Normalize): string {
-  if (normalize === 'upper') return token.toUpperCase();
-  if (normalize === 'lower') return token.toLowerCase();
-  return token;
 }
 
 const keyOf = (matcherId: string, scopeKey: string, token: string): string =>

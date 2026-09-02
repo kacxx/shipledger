@@ -36,6 +36,15 @@ describe('runRender', () => {
     expect(runRender(['pretty', '--input', fixture], process.cwd())).toBe(2);
   });
 
+  it('exits 2 for an Object.prototype member masquerading as a format', () => {
+    for (const format of ['toString', 'valueOf', 'hasOwnProperty', 'constructor']) {
+      const out = capture();
+      expect(runRender([format, '--input', fixture], process.cwd())).toBe(2);
+      expect(out.text()).toMatch(/Unknown format/);
+      vi.restoreAllMocks();
+    }
+  });
+
   it('exits 3 when the input is missing', () => {
     capture();
     expect(runRender(['report', '--input', '/nonexistent.json'], process.cwd())).toBe(3);

@@ -41,9 +41,9 @@
         "properties": {
           "repo": { "type": "string" },
           "base": { "type": "string" },
-          "baseSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "baseSha": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
           "head": { "type": "string" },
-          "headSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "headSha": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
           "include": { "type": "array", "items": { "type": "string" } },
           "mergeBase": { "type": ["string", "null"] },
           "baseIsAncestorOfHead": { "type": "boolean" },
@@ -60,7 +60,7 @@
         "required": ["repo", "sha", "subject", "body", "author", "committedAt", "ignored", "references", "findings"],
         "properties": {
           "repo": { "type": "string" },
-          "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "sha": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
           "subject": { "type": "string" },
           "body": { "type": "string" },
           "author": { "type": "string" },

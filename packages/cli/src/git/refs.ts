@@ -2,6 +2,7 @@ import { existsSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { envError } from '../errors.js';
 import { gitOut, gitStatus } from './exec.js';
+import { isGitSha } from './sha.js';
 import type { RangeResult, RangeSpec } from '../types.js';
 
 /**
@@ -56,7 +57,7 @@ function assertUnambiguous(ref: string, repoPath: string, repoName: string): voi
   for (const namespace of REF_NAMESPACES) {
     const out = gitStatus(['rev-parse', '--verify', '--quiet', `${namespace}${ref}^{commit}`], repoPath);
     const sha = out.stdout.trim();
-    if (out.code === 0 && /^[0-9a-f]{40}$/.test(sha)) {
+    if (out.code === 0 && isGitSha(sha)) {
       matches.push(`${namespace}${ref} (${sha.slice(0, 12)})`);
       shas.add(sha);
     }
@@ -74,7 +75,7 @@ function resolveRef(ref: string, repoPath: string, repoName: string): string {
   assertUnambiguous(ref, repoPath, repoName);
   const out = gitStatus(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], repoPath);
   const sha = out.stdout.trim();
-  if (out.code !== 0 || !/^[0-9a-f]{40}$/.test(sha)) {
+  if (out.code !== 0 || !isGitSha(sha)) {
     throw envError(`Ref "${ref}" does not resolve to a commit in repo "${repoName}" (${repoPath}). Refs are read locally and never fetched — fetch it yourself if it is missing.`);
   }
   return sha;
@@ -95,7 +96,7 @@ export function tryResolveRef(ref: string, repoPath: string): string | null {
   }
   const out = gitStatus(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], repoPath);
   const sha = out.stdout.trim();
-  return out.code === 0 && /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+  return out.code === 0 && isGitSha(sha) ? sha : null;
 }
 
 /** Asserts a recorded sha is still a commit in this repo, for verification. */
