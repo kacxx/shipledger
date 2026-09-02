@@ -17,11 +17,16 @@ where the tracker and git disagree.
 
 ```bash
 npx shipledger init --preset github-oss
-# edit "repos" to point at a checkout
+# 1. edit "repos" in shipledger.config.json to point at a checkout
 npx shipledger doctor
+# 2. cp changeset.example.json changeset.json, then replace its items and
+#    ranges with what your tracker claims the release contains
 npx shipledger check --changeset changeset.json
 npx shipledger render report
 ```
+
+`init` writes both files. A changeset is release-specific, so step 2 is the one
+part nothing can scaffold for you — `examples/` has a worked version of each.
 
 ## How it works
 
@@ -33,6 +38,15 @@ credentials.
 
 **It is repository-read-only.** It never fetches, checks out, mutates a working
 tree, or makes a network call. It writes only the output files you name.
+
+**The artifact is reproducible, not tamper-proof.** `render` refuses a
+`verified-changeset.json` that contradicts itself — a stripped violation or a
+flipped verdict is caught — but signing is a deliberate non-goal, so an edit
+careful enough to also repair the summary will render. `configFingerprint`
+covers the config and CLI version, not the commits. What makes the artifact
+trustworthy is that you can re-run `check` and get the same bytes, so treat
+re-running it as the verification step, and cite the range SHAs it records
+when you need to identify a release.
 
 ## Exit codes
 

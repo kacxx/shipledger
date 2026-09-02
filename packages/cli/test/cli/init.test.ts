@@ -3,8 +3,9 @@ import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runInit } from '../../src/cli/init.js';
-import { validateConfig } from '../../src/config/validate.js';
+import { validateChangeset, validateConfig } from '../../src/config/validate.js';
 import { mergeConfig } from '../../src/config/load.js';
+import { assertChangesetAgainstConfig } from '../../src/config/changeset.js';
 
 let work: string | undefined;
 afterEach(() => {
@@ -75,5 +76,42 @@ describe('runInit', () => {
     work = mkdtempSync(join(tmpdir(), 'shipledger-init-'));
     silence();
     expect(runInit(['--wat'], work)).toBe(2);
+  });
+
+  it('omits policy so the pinned preset stays the single source of it', () => {
+    work = mkdtempSync(join(tmpdir(), 'shipledger-init-'));
+    silence();
+    const out = join(work, 'c.json');
+    runInit(['--out', out], work);
+    expect(JSON.parse(readFileSync(out, 'utf8')).policy).toBeUndefined();
+  });
+
+  it('also writes a schema-valid changeset example, so the quickstart can run', () => {
+    work = mkdtempSync(join(tmpdir(), 'shipledger-init-'));
+    silence();
+    runInit(['--out', join(work, 'c.json')], work);
+    const example = join(work, 'changeset.example.json');
+    expect(existsSync(example)).toBe(true);
+    expect(() => validateChangeset(JSON.parse(readFileSync(example, 'utf8')))).not.toThrow();
+  });
+
+  it('writes an example whose tokens and ranges match the config it wrote', () => {
+    work = mkdtempSync(join(tmpdir(), 'shipledger-init-'));
+    silence();
+    const out = join(work, 'c.json');
+    runInit(['--preset', 'github-oss', '--out', out], work);
+    const config = mergeConfig(validateConfig(JSON.parse(readFileSync(out, 'utf8'))), work);
+    const changeset = validateChangeset(
+      JSON.parse(readFileSync(join(work, 'changeset.example.json'), 'utf8'))
+    );
+    expect(() => assertChangesetAgainstConfig(changeset, config)).not.toThrow();
+  });
+
+  it('refuses to overwrite an existing changeset example', () => {
+    work = mkdtempSync(join(tmpdir(), 'shipledger-init-'));
+    silence();
+    runInit(['--out', join(work, 'a.json')], work);
+    expect(runInit(['--out', join(work, 'b.json')], work)).toBe(2);
+    expect(existsSync(join(work, 'b.json'))).toBe(false);
   });
 });
