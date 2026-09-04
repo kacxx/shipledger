@@ -6,11 +6,15 @@ import { renderReport } from '../../src/render/report.js';
 import { renderChangelog } from '../../src/render/changelog.js';
 import { renderReleaseNotes } from '../../src/render/release-notes.js';
 import { validateVerified } from '../../src/config/validate.js';
-import type { NotesFile } from '../../src/types.js';
+import type { NotesFile, VerifiedChangeset } from '../../src/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const verified = validateVerified(
   JSON.parse(readFileSync(join(here, '..', 'fixtures', 'verified-example.json'), 'utf8'))
+);
+
+const multiRepo = validateVerified(
+  JSON.parse(readFileSync(join(here, '..', 'fixtures', 'verified-multi-repo.json'), 'utf8'))
 );
 
 const B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
@@ -24,6 +28,20 @@ const notes: NotesFile = {
   ranges: [{ repo: 'repo-a', classification: 'expected-divergence', note: 'branches cut separately' }]
 };
 
+const multiRepoNotes: NotesFile = {
+  version: 1,
+  noReference: [
+    { repo: 'backend', sha: 'aa00000400000000000000000000000000000000', classification: 'tooling-or-ci', note: 'html cleanup' },
+    { repo: 'frontend', sha: 'ff00000200000000000000000000000000000000', classification: 'process-miss', note: 'dev forgot ticket' }
+  ],
+  unknownReference: [
+    { repo: 'backend', sha: 'aa00000300000000000000000000000000000000', matcher: 'ticket-key', token: 'PROJ-99', classification: 'other-release', note: 'belongs to 1.8' },
+    { repo: 'backend', sha: 'aa00000300000000000000000000000000000000', matcher: 'ticket-key', token: 'OTHER-7', classification: 'other-release', note: 'different project' }
+  ],
+  items: [{ item: 'PROJ-12', classification: 'not-done', note: 'docs not ready yet' }],
+  ranges: [{ repo: 'frontend', classification: 'expected-divergence', note: 'hotfix branch cut' }]
+};
+
 const golden = (name: string): string =>
   readFileSync(join(here, '__golden__', `${name}.txt`), 'utf8');
 
@@ -33,9 +51,9 @@ describe('renderReport', () => {
   it('states the verdict', () => { expect(text).toMatch(/FAIL/); });
   it('names the unresolved token', () => { expect(text).toMatch(/PROJ-9/); });
   it('lists the unreferenced commit', () => { expect(text).toMatch(/cccccccc/); });
-  it('lists the item with no commits, by title and status', () => {
+  it('lists the item with no commits', () => {
     expect(text).toMatch(/Claimed but absent/);
-    expect(text).toMatch(/\(in-progress\)/);
+    expect(text).toMatch(/in-progress/);
   });
   it('shows the ignored commit and its rule', () => { expect(text).toMatch(/subjects:\^Merge branch/); });
   it('reports range divergence with the count only in base', () => {
@@ -56,6 +74,291 @@ describe('renderReport', () => {
   });
   it('is deterministic', () => {
     expect(renderReport(verified, notes)).toBe(renderReport(verified, notes));
+  });
+  it('includes config fingerprint', () => {
+    expect(text).toMatch(/sha256:0{64}/);
+  });
+  it('includes source provenance', () => {
+    expect(text).toMatch(/fetched 2026-01-01T00:00:00Z/);
+  });
+  it('renders as Markdown with headings and tables', () => {
+    expect(text).toMatch(/^# Reconciliation Report/m);
+    expect(text).toMatch(/^## Summary/m);
+    expect(text).toMatch(/^## repo-a/m);
+    expect(text).toMatch(/^\| Field \| Value \|/m);
+    expect(text).toMatch(/^\| Repo \| SHA \| Subject \| Status \| Detail \|/m);
+    expect(text).toMatch(/^\| Item \| Title \| Type \| Status \| Commits \| Finding \| Triage \|/m);
+  });
+  it('separates engine verdict from triage', () => {
+    const untriaged = renderReport(verified);
+    expect(untriaged).toMatch(/UNTRIAGED/);
+    expect(untriaged).toMatch(/\*\*FAIL\*\*/);
+    const triaged = renderReport(verified, notes);
+    expect(triaged).not.toMatch(/UNTRIAGED/);
+    expect(triaged).toMatch(/\*\*FAIL\*\*/);
+  });
+});
+
+describe('renderReport token and commit counts', () => {
+  it('reports commits with unresolved refs, reference count, and no-reference count', () => {
+    const text = renderReport(verified);
+    expect(text).toMatch(/1 commit\(s\) with 1 unresolved reference\(s\)/);
+    expect(text).toMatch(/1 commit\(s\) with no reference/);
+  });
+
+  it('reports distinct commit and reference counts for multi-repo', () => {
+    const text = renderReport(multiRepo);
+    expect(text).toMatch(/1 commit\(s\) with 2 unresolved reference\(s\)/);
+    expect(text).toMatch(/2 commit\(s\) with no reference/);
+  });
+});
+
+describe('renderReport triage coverage', () => {
+  it('shows UNTRIAGED with 0/N when no notes', () => {
+    const text = renderReport(verified);
+    expect(text).toMatch(/UNTRIAGED — 0\/4 findings covered/);
+  });
+
+  it('shows COMPLETE with N/N when notes are supplied', () => {
+    const text = renderReport(verified, notes);
+    expect(text).toMatch(/COMPLETE — 4\/4 findings covered/);
+  });
+
+  it('always includes the Triage row', () => {
+    expect(renderReport(verified)).toMatch(/^\| Triage \|/m);
+    expect(renderReport(verified, notes)).toMatch(/^\| Triage \|/m);
+  });
+
+  it('counts individual unknown-reference tuples for multi-repo', () => {
+    const text = renderReport(multiRepo);
+    expect(text).toMatch(/UNTRIAGED — 0\/6 findings covered/);
+  });
+
+  it('shows COMPLETE for multi-repo with notes', () => {
+    const text = renderReport(multiRepo, multiRepoNotes);
+    expect(text).toMatch(/COMPLETE — 6\/6 findings covered/);
+  });
+});
+
+describe('renderReport URL safety', () => {
+  function withUrl(url: string): VerifiedChangeset {
+    return {
+      ...verified,
+      changeset: {
+        ...verified.changeset,
+        items: verified.changeset.items.map((i) =>
+          i.id === 'PROJ-1' ? { ...i, url } : i
+        )
+      }
+    };
+  }
+
+  it('links a valid https URL', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/PROJ-1'));
+    expect(text).toMatch(/\[PROJ-1\]\(https:\/\/tracker\.example\.com\/PROJ-1\)/);
+  });
+
+  it('links a valid http URL', () => {
+    const text = renderReport(withUrl('http://tracker.example.com/PROJ-1'));
+    expect(text).toMatch(/\[PROJ-1\]\(http:\/\/tracker\.example\.com\/PROJ-1\)/);
+  });
+
+  it('rejects javascript: protocol', () => {
+    const text = renderReport(withUrl('javascript:alert(1)'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+    expect(text).toContain('PROJ-1');
+  });
+
+  it('rejects data: protocol', () => {
+    const text = renderReport(withUrl('data:text/html,<h1>hi</h1>'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('rejects a malformed URL', () => {
+    const text = renderReport(withUrl('not a url at all'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('rejects credential-bearing URLs', () => {
+    const text = renderReport(withUrl('https://user:pass@tracker.example.com/PROJ-1'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('encodes parentheses in URLs', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/item(1)'));
+    expect(text).toContain('https://tracker.example.com/item%281%29');
+  });
+
+  it('encodes angle brackets in URLs', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/<id>'));
+    expect(text).toContain('https://tracker.example.com/%3Cid%3E');
+  });
+
+  it('encodes spaces in URLs', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/my item'));
+    expect(text).toContain('https://tracker.example.com/my%20item');
+  });
+
+  it('rejects URLs with newlines', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\nb'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('rejects URLs with tab characters', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\tb'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('rejects URLs with null bytes', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\x00b'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('normalizes backslash in path via canonical URL', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\\b'));
+    expect(text).toContain('https://tracker.example.com/a/b');
+  });
+
+  it('encodes double quotes via canonical URL', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a"b'));
+    expect(text).toContain('https://tracker.example.com/a%22b');
+  });
+
+  it('rejects URLs with other ASCII control characters', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\x1fb'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+});
+
+describe('renderReport unresolved table format', () => {
+  it('renders unresolved references as a table', () => {
+    const text = renderReport(verified, notes);
+    expect(text).toMatch(/^\| Commit \| Reference \| Seen in \| Classification \| Operator note \|/m);
+    expect(text).toMatch(/^\| --- \| --- \| --- \| --- \| --- \|/m);
+  });
+
+  it('shows classification and note in separate columns', () => {
+    const text = renderReport(verified, notes);
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/\| other-release \| shipped in 1\.3 \|/);
+    expect(unresolvedSection).toMatch(/\| tooling-or-ci \| lint config only \|/);
+  });
+
+  it('shows dashes for untriaged entries', () => {
+    const text = renderReport(verified);
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/\| — \| — \|$/m);
+  });
+
+  it('shows no-reference commits in the table with a dash for Reference', () => {
+    const text = renderReport(verified);
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/cccccccc.*\| — \| — \|/);
+  });
+});
+
+describe('renderReport path evidence', () => {
+  it('preserves backticks in path scope using variable-length code-span delimiters', () => {
+    const withBacktickPath: VerifiedChangeset = {
+      ...verified,
+      ranges: verified.ranges.map((r) => ({
+        ...r,
+        include: ['src/`special`/**']
+      }))
+    };
+    const text = renderReport(withBacktickPath);
+    expect(text).toContain('`` src/`special`/** ``');
+    expect(text).not.toContain("'special'");
+  });
+
+  it('uses single-backtick delimiters when path has no backticks', () => {
+    const text = renderReport(multiRepo);
+    expect(text).toContain('`packages/api/**`');
+  });
+});
+
+describe('renderReport multiline safety', () => {
+  function withSubject(subject: string): VerifiedChangeset {
+    return {
+      ...verified,
+      commits: verified.commits.map((c) =>
+        c.sha.startsWith('cccc') ? { ...c, subject } : c
+      )
+    };
+  }
+
+  it('replaces newlines in commit subjects so they cannot break table rows', () => {
+    const text = renderReport(withSubject('line one\nline two'));
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('|') && line.includes('cccccccc')) {
+        expect(line).not.toContain('\n');
+        expect(line).toContain('line one line two');
+      }
+    }
+  });
+
+  it('replaces pipes in untrusted values so they cannot break table columns', () => {
+    const text = renderReport(withSubject('a | b'));
+    expect(text).toContain('a \\| b');
+  });
+
+  it('escapes backticks in subjects to prevent breaking inline code', () => {
+    const text = renderReport(withSubject('foo `bar` baz'));
+    expect(text).toContain('foo \\`bar\\` baz');
+  });
+});
+
+describe('renderReport multi-repo', () => {
+  const text = renderReport(multiRepo);
+
+  it('includes a section for each repository', () => {
+    expect(text).toMatch(/^## backend$/m);
+    expect(text).toMatch(/^## frontend$/m);
+  });
+  it('shows every commit in the evidence table', () => {
+    for (const sha of ['aa000001', 'aa000002', 'aa000003', 'aa000004', 'aa000005', 'ff000001', 'ff000002']) {
+      expect(text).toContain(sha);
+    }
+  });
+  it('shows every item in the items table', () => {
+    expect(text).toMatch(/PROJ-10/);
+    expect(text).toMatch(/PROJ-11/);
+    expect(text).toMatch(/PROJ-12/);
+  });
+  it('lists multiple unresolved tokens on one commit', () => {
+    expect(text).toMatch(/PROJ-99/);
+    expect(text).toMatch(/OTHER-7/);
+  });
+  it('groups unresolved references by repository', () => {
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/^### backend$/m);
+    expect(unresolvedSection).toMatch(/^### frontend$/m);
+  });
+  it('shows path scope when configured', () => {
+    expect(text).toMatch(/packages\/api\/\*\*/);
+  });
+  it('escapes Markdown-special characters in subjects', () => {
+    expect(text).toContain('\\|');
+    expect(text).toContain('\\`backtick\\`');
+    expect(text).toContain('\\<angle\\>');
+    expect(text).toContain('\\&');
+  });
+  it('links items that have URLs', () => {
+    expect(text).toMatch(/\[PROJ-10\]\(https:\/\/tracker\.example\.com\/PROJ-10\)/);
+  });
+  it('does not link items without URLs', () => {
+    expect(text).toMatch(/\| PROJ-12 \|/);
+    expect(text).not.toMatch(/\[PROJ-12\]\(/);
+  });
+  it('includes triage data in items table when notes supplied', () => {
+    const triaged = renderReport(multiRepo, multiRepoNotes);
+    expect(triaged).toMatch(/not-done: docs not ready yet/);
+    expect(triaged).toMatch(/other-release: belongs to 1\.8/);
+    expect(triaged).toMatch(/process-miss: dev forgot ticket/);
+  });
+  it('is deterministic', () => {
+    expect(renderReport(multiRepo, multiRepoNotes)).toBe(renderReport(multiRepo, multiRepoNotes));
   });
 });
 
@@ -104,17 +407,25 @@ describe('renderReleaseNotes', () => {
 });
 
 describe('empty status', () => {
-  const emptyStatusVerified = {
+  const emptyStatusVerified: VerifiedChangeset = {
     ...verified,
+    changeset: {
+      ...verified.changeset,
+      items: verified.changeset.items.map((i) =>
+        i.id === 'PROJ-2' ? { ...i, status: '' } : i
+      )
+    },
     items: verified.items.map((i) =>
       i.id === 'PROJ-2' ? { ...i, status: '' } : i
     )
   };
 
-  it('report omits parenthesised status when empty', () => {
+  it('report does not show an empty status column value', () => {
     const text = renderReport(emptyStatusVerified);
-    expect(text).toMatch(/PROJ-2 · Claimed but absent(?! \()/);
-    expect(text).not.toMatch(/\(\)/);
+    const itemsSection = text.slice(text.indexOf('## Claimed Items'));
+    const proj2Line = itemsSection.split('\n').find((l) => l.includes('PROJ-2'));
+    expect(proj2Line).toBeDefined();
+    expect(proj2Line).not.toMatch(/\| \|/);
   });
 
   it('changelog omits bracketed status when empty', () => {
@@ -151,6 +462,14 @@ describe('golden files', () => {
 
   it('untriaged report matches byte for byte', () => {
     expect(renderReport(verified)).toBe(golden('report-untriaged'));
+  });
+
+  it('multi-repo report matches byte for byte', () => {
+    expect(renderReport(multiRepo, multiRepoNotes)).toBe(golden('report-multi-repo'));
+  });
+
+  it('multi-repo untriaged report matches byte for byte', () => {
+    expect(renderReport(multiRepo)).toBe(golden('report-multi-repo-untriaged'));
   });
 
   it('changelog matches byte for byte', () => {
