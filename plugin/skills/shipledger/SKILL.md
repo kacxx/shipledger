@@ -153,7 +153,7 @@ annotated tags to the underlying commit. All git commands use argument arrays
 (no shell) and `--end-of-options` to prevent option injection.
 
 When showing the operator the resolved SHA for confirmation, use the same
-dereference: `git rev-parse --verify <ref>^{commit}`. A bare
+dereference: `git rev-parse --verify --end-of-options <ref>^{commit}`. A bare
 `git rev-parse <ref>` on an annotated tag returns the tag object ID, not the
 commit — presenting that as a commit SHA is incorrect.
 
