@@ -71,10 +71,12 @@ describe('runDoctor', () => {
     expect(runDoctor(setup(repo.path, 'tracker-keys'), process.cwd())).toBe(2);
   });
 
-  it('returns 3 and names the remedy for a missing repo', () => {
+  it('returns 3 and names the remedy for a missing repo, skipping its range check', () => {
     const out = capture();
     expect(runDoctor(setup('/nonexistent/repo'), process.cwd())).toBe(3);
-    expect(out.text()).toMatch(/does not exist/);
+    const text = out.text();
+    expect(text).toMatch(/does not exist/);
+    expect(text).not.toMatch(/FAIL range/);
   });
 
   it('validates the changeset before opening repositories', () => {
@@ -207,11 +209,15 @@ describe('runDoctor', () => {
     repo2.cleanup();
   });
 
-  it('includes matcher pattern in effective config', () => {
+  it('renders effective config as canonical JSON with all matcher fields', () => {
     repo = healthyRepo();
     const out = capture();
     runDoctor(setup(repo.path), process.cwd());
-    expect(out.text()).toMatch(/\/[^/]+\//);
+    const text = out.text();
+    expect(text).toMatch(/"id":"ticket-key"/);
+    expect(text).toMatch(/"pattern"/);
+    expect(text).toMatch(/"normalize"/);
+    expect(text).toMatch(/"namespace"/);
   });
 
   it('does not report dirt outside include paths', () => {

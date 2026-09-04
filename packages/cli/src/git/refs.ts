@@ -31,7 +31,12 @@ export interface DirtyTreeResult {
 }
 
 export function dirtyTree(repoPath: string, includePaths: string[]): DirtyTreeResult {
-  const args = ['--no-optional-locks', 'status', '--porcelain', '-z', '-u'];
+  const args = [
+    '-c', 'core.fsmonitor=false',
+    '-c', 'status.renames=copies',
+    '--no-optional-locks',
+    'status', '--porcelain', '-z', '-u'
+  ];
   if (includePaths.length > 0) args.push('--', ...includePaths);
   const out = gitStatus(args, repoPath);
   if (out.code !== 0) {
@@ -54,7 +59,7 @@ export function dirtyTree(repoPath: string, includePaths: string[]): DirtyTreeRe
     } else {
       if (x !== ' ' && x !== '?') staged.push(file);
       if (y !== ' ' && y !== '?') unstaged.push(file);
-      if (x === 'R' || x === 'C') i++;
+      if ('RC'.includes(x) || 'RC'.includes(y)) i++;
     }
   }
   return { staged, unstaged, untracked };

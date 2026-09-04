@@ -5,6 +5,7 @@ import { loadConfig, type ConfigOrigin } from '../config/load.js';
 import { compileAll } from '../core/compile.js';
 import { assertChangesetAgainstConfig, loadChangeset } from '../config/changeset.js';
 import { assertUsableRepo, dirtyTree, resolveRange } from '../git/refs.js';
+import { canonicalStringify } from '../core/canonical.js';
 import { CLI_VERSION } from './version.js';
 
 type RangeCheck = { ok: true; compatible: boolean } | { ok: false };
@@ -70,10 +71,10 @@ export function runDoctor(argv: string[], cwd: string): number {
     const tag = (o: ConfigOrigin): string => o === 'adopter' ? '[adopter override]' : '[preset]';
     lines.push('');
     lines.push('effective config:');
-    lines.push(`  matchers ${tag(origins.matchers)}: ${config.matchers.map((m) => `${m.id} (${m.namespace}, ${m.sources.join('+')}, /${m.pattern}/)`).join(', ')}`);
-    lines.push(`  history  ${tag(origins.history)}: ${config.history}`);
-    lines.push(`  ignore   ${tag(origins.ignore)}: authors: ${config.ignore.authors.join(', ') || '(none)'}; subjects: ${config.ignore.subjects.join(', ') || '(none)'}`);
-    lines.push(`  policy   ${tag(origins.policy)}: failOn: ${config.policy.failOn.join(', ') || '(none)'}`);
+    lines.push(`  matchers ${tag(origins.matchers)}: ${canonicalStringify(config.matchers)}`);
+    lines.push(`  history  ${tag(origins.history)}: ${canonicalStringify(config.history)}`);
+    lines.push(`  ignore   ${tag(origins.ignore)}: ${canonicalStringify(config.ignore)}`);
+    lines.push(`  policy   ${tag(origins.policy)}: ${canonicalStringify(config.policy)}`);
 
     const range = values['skill-cli-range'];
     if (range !== undefined) {
@@ -93,6 +94,8 @@ export function runDoctor(argv: string[], cwd: string): number {
     const rangeByRepo = new Map(
       (changeset?.ranges ?? []).map((r) => [r.repo, r] as const)
     );
+
+    const unusableRepos = new Set<string>();
 
     for (const repo of config.repos) {
       try {
@@ -114,6 +117,7 @@ export function runDoctor(argv: string[], cwd: string): number {
         }
       } catch (err) {
         exitCode = 3;
+        unusableRepos.add(repo.name);
         lines.push(`FAIL repo ${repo.name} — ${(err as Error).message}`);
       }
     }
@@ -121,6 +125,7 @@ export function runDoctor(argv: string[], cwd: string): number {
     if (changeset !== undefined) {
       lines.push('');
       for (const repo of config.repos) {
+        if (unusableRepos.has(repo.name)) continue;
         const spec = rangeByRepo.get(repo.name);
         if (spec === undefined) continue;
         try {
