@@ -11,6 +11,7 @@
 | Items linked | 2 / 3 |
 | Commits | 7 (1 ignored) |
 | Violations | no-reference=2, unknown-reference=1, item-without-commits=1, range-divergence=1 |
+| Triage | COMPLETE — 6/6 findings covered |
 
 **Source:** github-milestone · https://github.com/example/monorepo/milestone/5 · fetched 2026-06-15T14:30:00Z
 
@@ -67,17 +68,21 @@
 
 ## Unresolved
 
-3 affected commit(s), 4 unresolved token(s).
+2 unresolved reference(s), 2 commit(s) with no reference.
 
 ### backend
 
-- `aa000003` PROJ-99 stray ref and OTHER-7 too — PROJ-99 (ticket-key, subject) other-release: belongs to 1.8
-- `aa000003` PROJ-99 stray ref and OTHER-7 too — OTHER-7 (ticket-key, subject) other-release: different project
-- `aa000004` tidy up \<html\> \& stuff — no reference tooling-or-ci: html cleanup
+| Commit | Reference | Seen in | Classification | Operator note |
+| --- | --- | --- | --- | --- |
+| `aa000003` PROJ-99 stray ref and OTHER-7 too | PROJ-99 (ticket-key) | subject | other-release | belongs to 1.8 |
+| `aa000003` PROJ-99 stray ref and OTHER-7 too | OTHER-7 (ticket-key) | subject | other-release | different project |
+| `aa000004` tidy up \<html\> \& stuff | — | — | tooling-or-ci | html cleanup |
 
 ### frontend
 
-- `ff000002` no ticket here — no reference process-miss: dev forgot ticket
+| Commit | Reference | Seen in | Classification | Operator note |
+| --- | --- | --- | --- | --- |
+| `ff000002` no ticket here | — | — | process-miss | dev forgot ticket |
 
 ---
 

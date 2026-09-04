@@ -97,8 +97,170 @@ describe('renderReport', () => {
     expect(triaged).not.toMatch(/UNTRIAGED/);
     expect(triaged).toMatch(/\*\*FAIL\*\*/);
   });
-  it('separates affected-commit count from unresolved-token count', () => {
-    expect(text).toMatch(/2 affected commit\(s\), 2 unresolved token\(s\)/);
+});
+
+describe('renderReport token and commit counts', () => {
+  it('counts unresolved tokens only from unknown-reference commits', () => {
+    const text = renderReport(verified);
+    expect(text).toMatch(/1 unresolved reference\(s\)/);
+    expect(text).toMatch(/1 commit\(s\) with no reference/);
+  });
+
+  it('does not inflate token count with no-reference commits', () => {
+    const text = renderReport(multiRepo);
+    expect(text).toMatch(/2 unresolved reference\(s\)/);
+    expect(text).toMatch(/2 commit\(s\) with no reference/);
+  });
+});
+
+describe('renderReport triage coverage', () => {
+  it('shows UNTRIAGED with 0/N when no notes', () => {
+    const text = renderReport(verified);
+    expect(text).toMatch(/UNTRIAGED — 0\/4 findings covered/);
+  });
+
+  it('shows COMPLETE with N/N when notes are supplied', () => {
+    const text = renderReport(verified, notes);
+    expect(text).toMatch(/COMPLETE — 4\/4 findings covered/);
+  });
+
+  it('always includes the Triage row', () => {
+    expect(renderReport(verified)).toMatch(/^\| Triage \|/m);
+    expect(renderReport(verified, notes)).toMatch(/^\| Triage \|/m);
+  });
+
+  it('counts individual unknown-reference tuples for multi-repo', () => {
+    const text = renderReport(multiRepo);
+    expect(text).toMatch(/UNTRIAGED — 0\/6 findings covered/);
+  });
+
+  it('shows COMPLETE for multi-repo with notes', () => {
+    const text = renderReport(multiRepo, multiRepoNotes);
+    expect(text).toMatch(/COMPLETE — 6\/6 findings covered/);
+  });
+});
+
+describe('renderReport URL safety', () => {
+  function withUrl(url: string): VerifiedChangeset {
+    return {
+      ...verified,
+      changeset: {
+        ...verified.changeset,
+        items: verified.changeset.items.map((i) =>
+          i.id === 'PROJ-1' ? { ...i, url } : i
+        )
+      }
+    };
+  }
+
+  it('links a valid https URL', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/PROJ-1'));
+    expect(text).toMatch(/\[PROJ-1\]\(https:\/\/tracker\.example\.com\/PROJ-1\)/);
+  });
+
+  it('links a valid http URL', () => {
+    const text = renderReport(withUrl('http://tracker.example.com/PROJ-1'));
+    expect(text).toMatch(/\[PROJ-1\]\(http:\/\/tracker\.example\.com\/PROJ-1\)/);
+  });
+
+  it('rejects javascript: protocol', () => {
+    const text = renderReport(withUrl('javascript:alert(1)'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+    expect(text).toContain('PROJ-1');
+  });
+
+  it('rejects data: protocol', () => {
+    const text = renderReport(withUrl('data:text/html,<h1>hi</h1>'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('rejects a malformed URL', () => {
+    const text = renderReport(withUrl('not a url at all'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('rejects credential-bearing URLs', () => {
+    const text = renderReport(withUrl('https://user:pass@tracker.example.com/PROJ-1'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('encodes parentheses in URLs', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/item(1)'));
+    expect(text).toContain('https://tracker.example.com/item%281%29');
+  });
+
+  it('encodes angle brackets in URLs', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/<id>'));
+    expect(text).toContain('https://tracker.example.com/%3Cid%3E');
+  });
+
+  it('encodes spaces in URLs', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/my item'));
+    expect(text).toContain('https://tracker.example.com/my%20item');
+  });
+
+  it('rejects URLs with newlines', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\nb'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+});
+
+describe('renderReport unresolved table format', () => {
+  it('renders unresolved references as a table', () => {
+    const text = renderReport(verified, notes);
+    expect(text).toMatch(/^\| Commit \| Reference \| Seen in \| Classification \| Operator note \|/m);
+    expect(text).toMatch(/^\| --- \| --- \| --- \| --- \| --- \|/m);
+  });
+
+  it('shows classification and note in separate columns', () => {
+    const text = renderReport(verified, notes);
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/\| other-release \| shipped in 1\.3 \|/);
+    expect(unresolvedSection).toMatch(/\| tooling-or-ci \| lint config only \|/);
+  });
+
+  it('shows dashes for untriaged entries', () => {
+    const text = renderReport(verified);
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/\| — \| — \|$/m);
+  });
+
+  it('shows no-reference commits in the table with a dash for Reference', () => {
+    const text = renderReport(verified);
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/cccccccc.*\| — \| — \|/);
+  });
+});
+
+describe('renderReport multiline safety', () => {
+  function withSubject(subject: string): VerifiedChangeset {
+    return {
+      ...verified,
+      commits: verified.commits.map((c) =>
+        c.sha.startsWith('cccc') ? { ...c, subject } : c
+      )
+    };
+  }
+
+  it('replaces newlines in commit subjects so they cannot break table rows', () => {
+    const text = renderReport(withSubject('line one\nline two'));
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('|') && line.includes('cccccccc')) {
+        expect(line).not.toContain('\n');
+        expect(line).toContain('line one line two');
+      }
+    }
+  });
+
+  it('replaces pipes in untrusted values so they cannot break table columns', () => {
+    const text = renderReport(withSubject('a | b'));
+    expect(text).toContain('a \\| b');
+  });
+
+  it('escapes backticks in subjects to prevent breaking inline code', () => {
+    const text = renderReport(withSubject('foo `bar` baz'));
+    expect(text).toContain('foo \\`bar\\` baz');
   });
 });
 

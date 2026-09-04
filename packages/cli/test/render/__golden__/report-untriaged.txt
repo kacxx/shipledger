@@ -11,7 +11,7 @@
 | Items linked | 1 / 2 |
 | Commits | 4 (1 ignored) |
 | Violations | no-reference=1, unknown-reference=1, item-without-commits=1, range-divergence=1 |
-| Triage | UNTRIAGED — no notes supplied |
+| Triage | UNTRIAGED — 0/4 findings covered |
 
 **Source:** test · local · fetched 2026-01-01T00:00:00Z
 
@@ -46,12 +46,14 @@
 
 ## Unresolved
 
-2 affected commit(s), 2 unresolved token(s).
+1 unresolved reference(s), 1 commit(s) with no reference.
 
 ### repo-a
 
-- `bbbbbbbb` PROJ-1 and PROJ-9 together — PROJ-9 (ticket-key, subject)
-- `cccccccc` tidy up — no reference
+| Commit | Reference | Seen in | Classification | Operator note |
+| --- | --- | --- | --- | --- |
+| `bbbbbbbb` PROJ-1 and PROJ-9 together | PROJ-9 (ticket-key) | subject | — | — |
+| `cccccccc` tidy up | — | — | — | — |
 
 ---
 
