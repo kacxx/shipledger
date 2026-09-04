@@ -208,12 +208,13 @@ describe('circular association detection', () => {
 });
 
 describe('fetchedAt plausibility', () => {
-  it('rejects a changeset with a future fetchedAt timestamp', () => {
-    const future = new Date(Date.now() + 60 * 60_000).toISOString();
+  const PINNED_NOW = new Date('2026-06-15T12:00:00Z').getTime();
+
+  it('rejects a changeset with a future fetchedAt via injected clock', () => {
     const changeset = {
       version: 1,
       id: 'eval/future-clock',
-      source: { kind: 'test', ref: 'local', fetchedAt: future },
+      source: { kind: 'test', ref: 'local', fetchedAt: '2026-06-15T13:00:00Z' },
       items: [
         {
           id: 'PROJ-101',
@@ -234,9 +235,44 @@ describe('fetchedAt plausibility', () => {
       '--config', configPath,
       '--changeset', changesetPath,
       '--out', outFuture
-    ]);
+    ], repo.path, { now: PINNED_NOW });
 
     expect(exit).toBe(2);
+  });
+
+  it('accepts the same timestamp when the clock is later', () => {
+    const laterNow = new Date('2026-06-15T14:00:00Z').getTime();
+    const changeset = {
+      version: 1,
+      id: 'eval/past-clock',
+      source: { kind: 'test', ref: 'local', fetchedAt: '2026-06-15T13:00:00Z' },
+      items: [
+        {
+          id: 'PROJ-101',
+          title: 'Handle empty range',
+          type: 'story',
+          status: 'done',
+          tokens: [
+            { matcher: 'ticket-key', token: 'PROJ-101' },
+            { matcher: 'pr-ref', token: '#42', repo: 'service' }
+          ]
+        }
+      ],
+      ranges: [{ repo: 'service', base: 'v1.0.0', head: 'v1.1.0' }]
+    };
+
+    const changesetPath = join(repo.path, 'changeset-past.json');
+    writeFileSync(changesetPath, JSON.stringify(changeset));
+
+    const outPast = join(repo.path, 'verified-past.json');
+    const exit = runCheck([
+      '--config', configPath,
+      '--changeset', changesetPath,
+      '--out', outPast,
+      '--stable'
+    ], repo.path, { now: laterNow });
+
+    expect(exit).toBe(1);
   });
 });
 

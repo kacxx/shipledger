@@ -112,7 +112,14 @@ function assertUnambiguous(ref: string, repoPath: string, repoName: string): voi
   }
 }
 
+function assertNotOption(ref: string): void {
+  if (ref.startsWith('-')) {
+    throw envError(`Ref "${ref}" starts with a dash and would be interpreted as a git option. Use a full ref path like "refs/tags/${ref}" or rename it.`);
+  }
+}
+
 function resolveRef(ref: string, repoPath: string, repoName: string): string {
+  assertNotOption(ref);
   assertUnambiguous(ref, repoPath, repoName);
   const out = gitStatus(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], repoPath);
   const sha = out.stdout.trim();
@@ -130,6 +137,7 @@ function resolveRef(ref: string, repoPath: string, repoName: string): string {
  * since neither supports a claim either way.
  */
 export function tryResolveRef(ref: string, repoPath: string): string | null {
+  if (ref.startsWith('-')) return null;
   try {
     assertUnambiguous(ref, repoPath, '');
   } catch {

@@ -112,6 +112,18 @@ describe('resolveRange', () => {
     }
   });
 
+  it('rejects a ref that starts with a dash to prevent option injection', () => {
+    repo = makeRepo();
+    repo.commit('one');
+    try {
+      resolveRange({ repo: 'repo-a', base: '--upload-pack=evil', head: 'HEAD' }, repo.path);
+      throw new Error('should have thrown');
+    } catch (err) {
+      expect((err as CliError).exitCode).toBe(3);
+      expect((err as Error).message).toMatch(/dash/);
+    }
+  });
+
   it('blocks a name that is both a branch and a tag at different commits', () => {
     repo = makeRepo();
     const first = repo.commit('one');

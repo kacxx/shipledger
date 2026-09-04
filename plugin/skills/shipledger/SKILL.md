@@ -103,13 +103,14 @@ triage, not token injection.
 After building the changeset, run `check` and inspect the verified output. For
 each PR token you declared, confirm two things:
 
-1. The commit carrying that PR number is in the candidate range (if it is not,
-   the token is wrong — remove it and re-run).
+1. The commit carrying that PR number appears in the candidate range. If it does
+   not, the PR may have landed in an earlier release or a different branch — the
+   token is inapplicable to this changeset. Remove it and re-run.
 2. That same commit also contains a reference the ticket-key matcher links to the
    same item. If the only link between a commit and an item is the PR token you
    declared, the association is circular — your declaration created the
-   resolution. Find a second signal (ticket key in the subject, forge API link
-   between the PR and the item) or remove the token.
+   resolution. Find a second signal (ticket key in the commit subject, forge API
+   link between the PR and the item) or remove the token.
 
 ## Step 2 — Confirm the ranges
 
