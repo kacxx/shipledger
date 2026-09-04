@@ -96,7 +96,7 @@ function assertUnambiguous(ref: string, repoPath: string, repoName: string): voi
   const matches: string[] = [];
   const shas = new Set<string>();
   for (const namespace of REF_NAMESPACES) {
-    const out = gitStatus(['rev-parse', '--verify', '--quiet', `${namespace}${ref}^{commit}`], repoPath);
+    const out = gitStatus(['rev-parse', '--verify', '--quiet', '--end-of-options', `${namespace}${ref}^{commit}`], repoPath);
     const sha = out.stdout.trim();
     if (out.code === 0 && isGitSha(sha)) {
       matches.push(`${namespace}${ref} (${sha.slice(0, 12)})`);
@@ -114,7 +114,7 @@ function assertUnambiguous(ref: string, repoPath: string, repoName: string): voi
 
 function resolveRef(ref: string, repoPath: string, repoName: string): string {
   assertUnambiguous(ref, repoPath, repoName);
-  const out = gitStatus(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], repoPath);
+  const out = gitStatus(['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`], repoPath);
   const sha = out.stdout.trim();
   if (out.code !== 0 || !isGitSha(sha)) {
     throw envError(`Ref "${ref}" does not resolve to a commit in repo "${repoName}" (${repoPath}). Refs are read locally and never fetched — fetch it yourself if it is missing.`);
@@ -135,14 +135,14 @@ export function tryResolveRef(ref: string, repoPath: string): string | null {
   } catch {
     return null;
   }
-  const out = gitStatus(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], repoPath);
+  const out = gitStatus(['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`], repoPath);
   const sha = out.stdout.trim();
   return out.code === 0 && isGitSha(sha) ? sha : null;
 }
 
 /** Asserts a recorded sha is still a commit in this repo, for verification. */
 export function assertCommitExists(sha: string, repoPath: string, repoName: string, label: string): void {
-  const out = gitStatus(['rev-parse', '--verify', '--quiet', `${sha}^{commit}`], repoPath);
+  const out = gitStatus(['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], repoPath);
   if (out.code !== 0 || out.stdout.trim() !== sha) {
     throw envError(
       `The ${label} sha ${sha} recorded in the artifact is not a commit in repo "${repoName}" (${repoPath}). ` +
@@ -162,19 +162,19 @@ export function rangeFactsFor(
   headSha: string,
   repoPath: string
 ): RangeResult {
-  const mergeBaseResult = gitStatus(['merge-base', baseSha, headSha], repoPath);
+  const mergeBaseResult = gitStatus(['merge-base', '--end-of-options', baseSha, headSha], repoPath);
   if (mergeBaseResult.code !== 0 && mergeBaseResult.code !== 1) {
     throw envError(`git merge-base failed in ${repoPath} (status ${mergeBaseResult.code}): ${mergeBaseResult.stderr}`);
   }
   const mergeBase = mergeBaseResult.code === 0 ? mergeBaseResult.stdout.trim() : null;
 
-  const ancestry = gitStatus(['merge-base', '--is-ancestor', baseSha, headSha], repoPath);
+  const ancestry = gitStatus(['merge-base', '--is-ancestor', '--end-of-options', baseSha, headSha], repoPath);
   if (ancestry.code !== 0 && ancestry.code !== 1) {
     throw envError(`git merge-base --is-ancestor failed in ${repoPath} (status ${ancestry.code}): ${ancestry.stderr}`);
   }
   const baseIsAncestorOfHead = ancestry.code === 0;
 
-  const commitsOnlyInBase = Number(gitOut(['rev-list', '--count', `${headSha}..${baseSha}`], repoPath).trim());
+  const commitsOnlyInBase = Number(gitOut(['rev-list', '--count', '--end-of-options', `${headSha}..${baseSha}`], repoPath).trim());
 
   return {
     repo: spec.repo,

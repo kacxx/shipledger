@@ -41,7 +41,7 @@ export function parseLogOutput(raw: string, repo: string, repoPath: string): Com
 export function walkRange(range: RangeResult, repoPath: string, history: HistoryMode): CommitRecord[] {
   const args = ['log', `--format=${FORMAT}`];
   if (history === 'first-parent') args.push('--first-parent');
-  args.push(`${range.baseSha}..${range.headSha}`);
+  args.push('--end-of-options', `${range.baseSha}..${range.headSha}`);
   if (range.include.length > 0) args.push('--', ...range.include);
 
   return parseLogOutput(gitOut(args, repoPath), range.repo, repoPath);

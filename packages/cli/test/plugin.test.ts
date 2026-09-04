@@ -92,4 +92,25 @@ describe('skill documents the real contracts', () => {
     expect(text).toMatch(/dirty working tree/i);
     expect(text).toMatch(/excluded from the candidate/i);
   });
+
+  it('requires fetchedAt to be captured at provider-response time', () => {
+    expect(text).toMatch(/actual UTC time.*provider response/i);
+    expect(text).toMatch(/corrupts the audit trail/i);
+  });
+
+  it('documents PR token resolution with demonstrable-association rule', () => {
+    expect(text).toMatch(/demonstrable association/i);
+    expect(text).toMatch(/pr-ref/);
+  });
+
+  it('documents annotated tag dereference using ^{commit}', () => {
+    expect(text).toMatch(/rev-parse --verify.*\^{commit}/)
+  });
+
+  it('documents PR-association verification and warns against circular declaration', () => {
+    expect(text).toMatch(/run.*check/i);
+    expect(text).toMatch(/PR token/i);
+    expect(text).toMatch(/circular/i);
+    expect(text).toMatch(/second signal/i);
+  });
 });
