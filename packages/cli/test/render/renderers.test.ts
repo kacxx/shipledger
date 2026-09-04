@@ -100,15 +100,15 @@ describe('renderReport', () => {
 });
 
 describe('renderReport token and commit counts', () => {
-  it('counts unresolved tokens only from unknown-reference commits', () => {
+  it('reports commits with unresolved refs, reference count, and no-reference count', () => {
     const text = renderReport(verified);
-    expect(text).toMatch(/1 unresolved reference\(s\)/);
+    expect(text).toMatch(/1 commit\(s\) with 1 unresolved reference\(s\)/);
     expect(text).toMatch(/1 commit\(s\) with no reference/);
   });
 
-  it('does not inflate token count with no-reference commits', () => {
+  it('reports distinct commit and reference counts for multi-repo', () => {
     const text = renderReport(multiRepo);
-    expect(text).toMatch(/2 unresolved reference\(s\)/);
+    expect(text).toMatch(/1 commit\(s\) with 2 unresolved reference\(s\)/);
     expect(text).toMatch(/2 commit\(s\) with no reference/);
   });
 });
@@ -203,6 +203,31 @@ describe('renderReport URL safety', () => {
     const text = renderReport(withUrl('https://tracker.example.com/a\nb'));
     expect(text).not.toMatch(/\[PROJ-1\]\(/);
   });
+
+  it('rejects URLs with tab characters', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\tb'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('rejects URLs with null bytes', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\x00b'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
+
+  it('normalizes backslash in path via canonical URL', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\\b'));
+    expect(text).toContain('https://tracker.example.com/a/b');
+  });
+
+  it('encodes double quotes via canonical URL', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a"b'));
+    expect(text).toContain('https://tracker.example.com/a%22b');
+  });
+
+  it('rejects URLs with other ASCII control characters', () => {
+    const text = renderReport(withUrl('https://tracker.example.com/a\x1fb'));
+    expect(text).not.toMatch(/\[PROJ-1\]\(/);
+  });
 });
 
 describe('renderReport unresolved table format', () => {
@@ -229,6 +254,26 @@ describe('renderReport unresolved table format', () => {
     const text = renderReport(verified);
     const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
     expect(unresolvedSection).toMatch(/cccccccc.*\| — \| — \|/);
+  });
+});
+
+describe('renderReport path evidence', () => {
+  it('preserves backticks in path scope using variable-length code-span delimiters', () => {
+    const withBacktickPath: VerifiedChangeset = {
+      ...verified,
+      ranges: verified.ranges.map((r) => ({
+        ...r,
+        include: ['src/`special`/**']
+      }))
+    };
+    const text = renderReport(withBacktickPath);
+    expect(text).toContain('`` src/`special`/** ``');
+    expect(text).not.toContain("'special'");
+  });
+
+  it('uses single-backtick delimiters when path has no backticks', () => {
+    const text = renderReport(multiRepo);
+    expect(text).toContain('`packages/api/**`');
   });
 });
 

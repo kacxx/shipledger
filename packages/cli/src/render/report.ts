@@ -7,12 +7,19 @@ function mdEscape(text: string): string {
   return text.replace(/[\r\n]+/g, ' ').replace(/([\\`*_{}[\]()#+!|<>&~])/g, '\\$1');
 }
 
-function codeSpanSafe(text: string): string {
-  return text.replace(/[\r\n]+/g, ' ').replace(/`/g, "'").replace(/\|/g, '\\|');
+function codeSpan(text: string): string {
+  const safe = text.replace(/[\r\n]+/g, ' ').replace(/\|/g, '\\|');
+  const runs = safe.match(/`+/g);
+  const maxRun = runs ? Math.max(...runs.map((r) => r.length)) : 0;
+  if (maxRun === 0) return `\`${safe}\``;
+  const fence = '`'.repeat(maxRun + 1);
+  return `${fence} ${safe} ${fence}`;
 }
 
 function safeItemUrl(raw: string | undefined): string | null {
   if (raw === undefined) return null;
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(raw)) return null;
   let url: URL;
   try {
     url = new URL(raw);
@@ -21,13 +28,7 @@ function safeItemUrl(raw: string | undefined): string | null {
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
   if (url.username !== '' || url.password !== '') return null;
-  const dest = raw
-    .replace(/[<>]/g, (ch) => encodeURIComponent(ch))
-    .replace(/\(/g, '%28')
-    .replace(/\)/g, '%29')
-    .replace(/ /g, '%20');
-  if (/[\r\n]/.test(dest)) return null;
-  return dest;
+  return url.href.replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
 function noteSuffix(entry: { classification: string; note: string } | undefined): string {
@@ -115,7 +116,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
     }
     out.push(`| Ancestry | ${range.baseIsAncestorOfHead ? 'base is ancestor of head' : `**diverged** — ${range.commitsOnlyInBase} commit(s) only in base`} |`);
     if (range.include.length > 0) {
-      out.push(`| Path scope | ${range.include.map((p) => `\`${codeSpanSafe(p)}\``).join(', ')} |`);
+      out.push(`| Path scope | ${range.include.map((p) => codeSpan(p)).join(', ')} |`);
     }
     if (range.findings.includes('range-divergence')) {
       const rangeNote = lookup.ranges.get(repo);
@@ -191,7 +192,9 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
     }
 
     const parts: string[] = [];
-    if (tokenCount > 0) parts.push(`${tokenCount} unresolved reference(s)`);
+    if (unknownRefCommits.length > 0) {
+      parts.push(`${unknownRefCommits.length} commit(s) with ${tokenCount} unresolved reference(s)`);
+    }
     if (noRefCommits.length > 0) parts.push(`${noRefCommits.length} commit(s) with no reference`);
     out.push(`${parts.join(', ')}.`);
     out.push('');

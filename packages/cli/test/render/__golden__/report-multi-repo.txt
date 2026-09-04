@@ -68,7 +68,7 @@
 
 ## Unresolved
 
-2 unresolved reference(s), 2 commit(s) with no reference.
+1 commit(s) with 2 unresolved reference(s), 2 commit(s) with no reference.
 
 ### backend
 

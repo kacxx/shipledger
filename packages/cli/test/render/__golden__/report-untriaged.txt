@@ -46,7 +46,7 @@
 
 ## Unresolved
 
-1 unresolved reference(s), 1 commit(s) with no reference.
+1 commit(s) with 1 unresolved reference(s), 1 commit(s) with no reference.
 
 ### repo-a
 
