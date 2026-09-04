@@ -100,12 +100,16 @@ and the CLI correctly reports it as `unknown-reference`.
 Unresolved PR references are evidence, not defects. Classifying them requires
 triage, not token injection.
 
-After building the changeset, run `check` and inspect the output: every PR token
-you added should resolve to the expected item. If a PR token you added does not
-resolve (the commit carrying that PR number is not in the candidate range), the
-association was wrong — remove the token and re-run. This is a concrete
-verification that the association is supported by evidence in git, not only by
-the tracker's metadata.
+After building the changeset, run `check` and inspect the verified output. For
+each PR token you declared, confirm two things:
+
+1. The commit carrying that PR number is in the candidate range (if it is not,
+   the token is wrong — remove it and re-run).
+2. That same commit also contains a reference the ticket-key matcher links to the
+   same item. If the only link between a commit and an item is the PR token you
+   declared, the association is circular — your declaration created the
+   resolution. Find a second signal (ticket key in the subject, forge API link
+   between the PR and the item) or remove the token.
 
 ## Step 2 — Confirm the ranges
 

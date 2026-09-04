@@ -151,6 +151,62 @@ describe('PR token resolution contract', () => {
   });
 });
 
+describe('circular association detection', () => {
+  it('a PR token with no ticket-key corroboration links only through the declaration', () => {
+    // PROJ-999 was never mentioned in any commit subject.
+    // Declaring pr-ref #42 for it links the commit, but the ticket-key
+    // matcher produces no reference to PROJ-999 — the link is circular.
+    const changeset = {
+      version: 1,
+      id: 'eval/circular',
+      source: { kind: 'test', ref: 'local', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [
+        {
+          id: 'PROJ-999',
+          title: 'Never mentioned in git',
+          type: 'story',
+          status: 'done',
+          tokens: [
+            { matcher: 'ticket-key', token: 'PROJ-999' },
+            { matcher: 'pr-ref', token: '#42', repo: 'service' }
+          ]
+        }
+      ],
+      ranges: [{ repo: 'service', base: 'v1.0.0', head: 'v1.1.0' }]
+    };
+
+    const changesetPath = join(repo.path, 'changeset-circular.json');
+    writeFileSync(changesetPath, JSON.stringify(changeset));
+
+    const outCircular = join(repo.path, 'verified-circular.json');
+    runCheck([
+      '--config', configPath,
+      '--changeset', changesetPath,
+      '--out', outCircular,
+      '--stable'
+    ]);
+
+    const verified: VerifiedChangeset = JSON.parse(readFileSync(outCircular, 'utf8'));
+
+    const item = verified.items.find((i) => i.id === 'PROJ-999');
+    expect(item).toBeDefined();
+    // Item is linked — but only via the pr-ref the agent declared
+    expect(item!.commits.length).toBe(1);
+
+    // The commit's ticket-key reference resolves to PROJ-101, not PROJ-999.
+    // Only the pr-ref resolves to PROJ-999 — which is the declaration itself.
+    const commit42 = verified.commits.find((c) => c.subject.includes('#42'));
+    expect(commit42).toBeDefined();
+    const ticketRef = commit42!.references.find((r) => r.matcher === 'ticket-key');
+    expect(ticketRef).toBeDefined();
+    expect(ticketRef!.resolvesTo).not.toContain('PROJ-999');
+
+    const prRef = commit42!.references.find((r) => r.matcher === 'pr-ref' && r.token === '#42');
+    expect(prRef).toBeDefined();
+    expect(prRef!.resolvesTo).toContain('PROJ-999');
+  });
+});
+
 describe('fetchedAt plausibility', () => {
   it('rejects a changeset with a future fetchedAt timestamp', () => {
     const future = new Date(Date.now() + 60 * 60_000).toISOString();

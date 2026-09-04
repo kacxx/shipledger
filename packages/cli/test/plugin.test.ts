@@ -107,9 +107,10 @@ describe('skill documents the real contracts', () => {
     expect(text).toMatch(/rev-parse --verify.*\^{commit}/)
   });
 
-  it('documents PR-association verification after building the changeset', () => {
-    expect(text).toMatch(/run.*check.*inspect/i);
+  it('documents PR-association verification and warns against circular declaration', () => {
+    expect(text).toMatch(/run.*check/i);
     expect(text).toMatch(/PR token/i);
-    expect(text).toMatch(/should resolve/i);
+    expect(text).toMatch(/circular/i);
+    expect(text).toMatch(/second signal/i);
   });
 });

@@ -30,7 +30,7 @@ export function runCheck(argv: string[], cwd: string): number {
     const { config, configFingerprint } = loadConfig(resolve(cwd, values.config), CLI_VERSION);
     const compiled = compileAll(config);
     const changeset = loadChangeset(resolve(cwd, values.changeset));
-    assertFetchedAtPlausible(changeset.source.fetchedAt);
+    assertFetchedAtPlausible(changeset.source.fetchedAt, Date.now());
     assertChangesetAgainstConfig(changeset, config);
 
     const rangeByRepo = new Map(changeset.ranges.map((r) => [r.repo, r]));

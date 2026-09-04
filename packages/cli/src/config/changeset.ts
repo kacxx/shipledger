@@ -21,12 +21,11 @@ export function loadChangeset(path: string): Changeset {
 
 const CLOCK_SKEW_MS = 5 * 60_000;
 
-export function assertFetchedAtPlausible(fetchedAt: string): void {
+export function assertFetchedAtPlausible(fetchedAt: string, now: number): void {
   const ts = new Date(fetchedAt).getTime();
   if (Number.isNaN(ts)) {
     throw usageError(`source.fetchedAt "${fetchedAt}" is not a valid timestamp.`);
   }
-  const now = Date.now();
   if (ts > now + CLOCK_SKEW_MS) {
     throw usageError(
       `source.fetchedAt "${fetchedAt}" is in the future. ` +
