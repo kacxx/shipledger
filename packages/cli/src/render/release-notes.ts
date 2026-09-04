@@ -16,6 +16,13 @@ export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFil
     out.push('');
   }
 
+  const orphans = verified.items.filter((i) => i.findings.includes('item-without-commits'));
+  if (orphans.length > 0) {
+    out.push('### claimed but not in git', '');
+    for (const i of orphans) out.push(`* ~${i.title}~ (${i.id})${i.status ? ` [${i.status}]` : ''}`);
+    out.push('');
+  }
+
   const s = verified.summary;
   const caveats: string[] = [];
   if (s.unknownReference > 0) caveats.push(`${s.unknownReference} commit(s) reference other releases`);

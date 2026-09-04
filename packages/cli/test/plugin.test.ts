@@ -79,4 +79,17 @@ describe('skill documents the real contracts', () => {
   it('states that item id is not matchable', () => {
     expect(text).toMatch(/never matched against git/i);
   });
+
+  it('documents effective config inspection with origin markers', () => {
+    expect(text).toMatch(/effective config/i);
+    expect(text).toMatch(/adopter override/i);
+    expect(text).toMatch(/replace-only/i);
+  });
+
+  it('documents preflight before range confirmation', () => {
+    expect(text).toMatch(/preflight before confirmation/i);
+    expect(text).toMatch(/shallow/i);
+    expect(text).toMatch(/dirty working tree/i);
+    expect(text).toMatch(/excluded from the candidate/i);
+  });
 });

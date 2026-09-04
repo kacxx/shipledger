@@ -33,7 +33,10 @@ describe('renderReport', () => {
   it('states the verdict', () => { expect(text).toMatch(/FAIL/); });
   it('names the unresolved token', () => { expect(text).toMatch(/PROJ-9/); });
   it('lists the unreferenced commit', () => { expect(text).toMatch(/cccccccc/); });
-  it('lists the item with no commits, by title', () => { expect(text).toMatch(/Claimed but absent/); });
+  it('lists the item with no commits, by title and status', () => {
+    expect(text).toMatch(/Claimed but absent/);
+    expect(text).toMatch(/\(in-progress\)/);
+  });
   it('shows the ignored commit and its rule', () => { expect(text).toMatch(/subjects:\^Merge branch/); });
   it('reports range divergence with the count only in base', () => {
     expect(text).toMatch(/diverge/i);
@@ -68,6 +71,9 @@ describe('renderChangelog', () => {
   it('reports the ignored count', () => {
     expect(renderChangelog(verified)).toMatch(/1 commit/);
   });
+  it('shows tracker status for items without commits', () => {
+    expect(renderChangelog(verified)).toMatch(/\[in-progress\]/);
+  });
   it('carries note classifications through', () => {
     expect(renderChangelog(verified, notes)).toMatch(/other-release/);
   });
@@ -83,11 +89,44 @@ describe('renderReleaseNotes', () => {
   it('lists verified items by title', () => {
     expect(renderReleaseNotes(verified)).toMatch(/Add the thing/);
   });
+  it('lists orphan items with status', () => {
+    const text = renderReleaseNotes(verified);
+    expect(text).toMatch(/claimed but not in git/);
+    expect(text).toMatch(/Claimed but absent/);
+    expect(text).toMatch(/\[in-progress\]/);
+  });
   it('summarises the reconciliation counts', () => {
     expect(renderReleaseNotes(verified)).toMatch(/1\/2/);
   });
   it('is deterministic', () => {
     expect(renderReleaseNotes(verified)).toBe(renderReleaseNotes(verified));
+  });
+});
+
+describe('empty status', () => {
+  const emptyStatusVerified = {
+    ...verified,
+    items: verified.items.map((i) =>
+      i.id === 'PROJ-2' ? { ...i, status: '' } : i
+    )
+  };
+
+  it('report omits parenthesised status when empty', () => {
+    const text = renderReport(emptyStatusVerified);
+    expect(text).toMatch(/PROJ-2 · Claimed but absent(?! \()/);
+    expect(text).not.toMatch(/\(\)/);
+  });
+
+  it('changelog omits bracketed status when empty', () => {
+    const text = renderChangelog(emptyStatusVerified);
+    expect(text).toMatch(/PROJ-2\*\* Claimed but absent(?! \[)/);
+    expect(text).not.toMatch(/\[\]/);
+  });
+
+  it('release notes omits bracketed status when empty', () => {
+    const text = renderReleaseNotes(emptyStatusVerified);
+    expect(text).toMatch(/Claimed but absent/);
+    expect(text).not.toMatch(/\[\]/);
   });
 });
 

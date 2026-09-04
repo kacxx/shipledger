@@ -24,6 +24,47 @@ const normalize = (p: string): string => {
   return process.platform === 'win32' ? resolved.replace(/\\/g, '/').toLowerCase() : resolved;
 };
 
+export interface DirtyTreeResult {
+  staged: string[];
+  unstaged: string[];
+  untracked: string[];
+}
+
+export function dirtyTree(repoPath: string, includePaths: string[]): DirtyTreeResult {
+  const args = [
+    '-c', 'core.fsmonitor=false',
+    '-c', 'status.renames=copies',
+    '--no-optional-locks',
+    'status', '--porcelain', '-z', '-u'
+  ];
+  if (includePaths.length > 0) args.push('--', ...includePaths);
+  const out = gitStatus(args, repoPath);
+  if (out.code !== 0) {
+    throw envError(`git status failed in ${repoPath} (exit ${out.code}): ${out.stderr}`);
+  }
+
+  const staged: string[] = [];
+  const unstaged: string[] = [];
+  const untracked: string[] = [];
+
+  const entries = out.stdout.split('\0');
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i] as string;
+    if (entry.length < 3) continue;
+    const x = entry[0] as string;
+    const y = entry[1] as string;
+    const file = entry.slice(3);
+    if (x === '?' && y === '?') {
+      untracked.push(file);
+    } else {
+      if (x !== ' ' && x !== '?') staged.push(file);
+      if (y !== ' ' && y !== '?') unstaged.push(file);
+      if ('RC'.includes(x) || 'RC'.includes(y)) i++;
+    }
+  }
+  return { staged, unstaged, untracked };
+}
+
 export function assertUsableRepo(repoPath: string, repoName: string): void {
   if (!existsSync(repoPath)) {
     throw envError(`Repo "${repoName}" is configured at ${repoPath}, which does not exist. Clone it there or fix "path" in the config.`);

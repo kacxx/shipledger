@@ -39,7 +39,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Claimed but not found in git', '');
     for (const i of orphans) {
       const note = lookup.items.get(i.id);
-      out.push(`- **${i.id}** ${i.title}${note ? ` — ${note.classification}` : ''}`);
+      out.push(`- **${i.id}** ${i.title}${i.status ? ` [${i.status}]` : ''}${note ? ` — ${note.classification}` : ''}`);
     }
     out.push('');
   }

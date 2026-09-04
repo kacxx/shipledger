@@ -10,7 +10,7 @@
     "source": { "kind": "test", "ref": "local", "fetchedAt": "2026-01-01T00:00:00Z" },
     "items": [
       { "id": "PROJ-1", "title": "Add the thing", "type": "story", "status": "done", "tokens": [{ "matcher": "ticket-key", "token": "PROJ-1" }] },
-      { "id": "PROJ-2", "title": "Claimed but absent", "type": "bug", "status": "done", "tokens": [{ "matcher": "ticket-key", "token": "PROJ-2" }] }
+      { "id": "PROJ-2", "title": "Claimed but absent", "type": "bug", "status": "in-progress", "tokens": [{ "matcher": "ticket-key", "token": "PROJ-2" }] }
     ]
   },
   "ranges": [
@@ -24,7 +24,7 @@
   ],
   "items": [
     { "id": "PROJ-1", "title": "Add the thing", "type": "story", "status": "done", "commits": [{ "repo": "repo-a", "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, { "repo": "repo-a", "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }], "findings": [] },
-    { "id": "PROJ-2", "title": "Claimed but absent", "type": "bug", "status": "done", "commits": [], "findings": ["item-without-commits"] }
+    { "id": "PROJ-2", "title": "Claimed but absent", "type": "bug", "status": "in-progress", "commits": [], "findings": ["item-without-commits"] }
   ],
   "summary": { "items": 2, "itemsLinked": 1, "commits": 4, "commitsIgnored": 1, "noReference": 1, "unknownReference": 1, "itemsWithoutCommits": 1, "rangeDivergence": 1 },
   "verdict": "fail",
