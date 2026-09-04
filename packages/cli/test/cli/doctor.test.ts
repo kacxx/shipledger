@@ -184,6 +184,33 @@ describe('runDoctor', () => {
     expect(text).toMatch(/these changes are excluded/);
   });
 
+  it('skips dirty-tree check for repos not in the changeset', () => {
+    repo = healthyRepo();
+    writeFileSync(join(repo.path, 'dirty.txt'), 'dirty\n');
+
+    work = mkdtempSync(join(tmpdir(), 'shipledger-doc-'));
+    writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: repo.path }]
+    }));
+    writeFileSync(join(work, 'changeset.json'), JSON.stringify({
+      version: 1, id: 'r', source: { kind: 'test', ref: 'l', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [], ranges: [{ repo: 'other-repo', base: 'v1', head: 'v2' }]
+    }));
+
+    const out = capture();
+    runDoctor(['--config', join(work, 'config.json'), '--changeset', join(work, 'changeset.json')], process.cwd());
+    expect(out.text()).not.toMatch(/INFO/);
+    expect(out.text()).not.toMatch(/dirty\.txt/);
+  });
+
+  it('includes matcher pattern in effective config', () => {
+    repo = healthyRepo();
+    const out = capture();
+    runDoctor(setup(repo.path), process.cwd());
+    expect(out.text()).toMatch(/\/[^/]+\//);
+  });
+
   it('does not report dirt outside include paths', () => {
     repo = healthyRepo();
     writeFileSync(join(repo.path, 'outside.txt'), 'outside\n');

@@ -183,6 +183,10 @@ describe('dirtyTree', () => {
     expect(result.untracked).toContain('new.txt');
   });
 
+  it('throws when git status fails', () => {
+    expect(() => dirtyTree('/nonexistent/path', [])).toThrow(/git status failed/);
+  });
+
   it('scopes to include paths', () => {
     repo = makeRepo();
     mkdirSync(join(repo!.path, 'pkg'));

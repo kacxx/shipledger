@@ -70,7 +70,7 @@ export function runDoctor(argv: string[], cwd: string): number {
     const tag = (o: ConfigOrigin): string => o === 'adopter' ? '[adopter override]' : '[preset]';
     lines.push('');
     lines.push('effective config:');
-    lines.push(`  matchers ${tag(origins.matchers)}: ${config.matchers.map((m) => `${m.id} (${m.namespace}, ${m.sources.join('+')})`).join(', ')}`);
+    lines.push(`  matchers ${tag(origins.matchers)}: ${config.matchers.map((m) => `${m.id} (${m.namespace}, ${m.sources.join('+')}, /${m.pattern}/)`).join(', ')}`);
     lines.push(`  history  ${tag(origins.history)}: ${config.history}`);
     lines.push(`  ignore   ${tag(origins.ignore)}: authors: ${config.ignore.authors.join(', ') || '(none)'}; subjects: ${config.ignore.subjects.join(', ') || '(none)'}`);
     lines.push(`  policy   ${tag(origins.policy)}: failOn: ${config.policy.failOn.join(', ') || '(none)'}`);
@@ -100,15 +100,17 @@ export function runDoctor(argv: string[], cwd: string): number {
         lines.push(`OK   repo ${repo.name} — ${repo.path}`);
 
         const spec = rangeByRepo.get(repo.name);
-        const includes = spec?.include ?? [];
-        const dirty = dirtyTree(repo.path, includes);
-        const total = dirty.staged.length + dirty.unstaged.length + dirty.untracked.length;
-        if (total > 0) {
-          const scope = includes.length > 0 ? `under ${includes.join(', ')}` : 'in working tree';
-          lines.push(`INFO repo ${repo.name} — ${total} changed file(s) ${scope} (exact base/head SHAs determine reconciliation; these changes are excluded)`);
-          for (const f of dirty.staged) lines.push(`       staged: ${f}`);
-          for (const f of dirty.unstaged) lines.push(`       unstaged: ${f}`);
-          for (const f of dirty.untracked) lines.push(`       untracked: ${f}`);
+        if (spec !== undefined) {
+          const includes = spec.include ?? [];
+          const dirty = dirtyTree(repo.path, includes);
+          const total = dirty.staged.length + dirty.unstaged.length + dirty.untracked.length;
+          if (total > 0) {
+            const scope = includes.length > 0 ? `under ${includes.join(', ')}` : 'in working tree';
+            lines.push(`INFO repo ${repo.name} — ${total} changed file(s) ${scope} (exact base/head SHAs determine reconciliation; these changes are excluded)`);
+            for (const f of dirty.staged) lines.push(`       staged: ${f}`);
+            for (const f of dirty.unstaged) lines.push(`       unstaged: ${f}`);
+            for (const f of dirty.untracked) lines.push(`       untracked: ${f}`);
+          }
         }
       } catch (err) {
         exitCode = 3;

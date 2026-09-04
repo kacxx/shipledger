@@ -60,7 +60,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
     out.push('');
     out.push(`Items claimed with no commits (${orphans.length}):`);
     for (const i of orphans) {
-      out.push(`  ${i.id} · ${i.title} (${i.status})${suffix(lookup.items.get(i.id))}`);
+      out.push(`  ${i.id} · ${i.title}${i.status ? ` (${i.status})` : ''}${suffix(lookup.items.get(i.id))}`);
     }
   }
 

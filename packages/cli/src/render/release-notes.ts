@@ -19,7 +19,7 @@ export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFil
   const orphans = verified.items.filter((i) => i.findings.includes('item-without-commits'));
   if (orphans.length > 0) {
     out.push('### claimed but not in git', '');
-    for (const i of orphans) out.push(`* ~${i.title}~ (${i.id}) [${i.status}]`);
+    for (const i of orphans) out.push(`* ~${i.title}~ (${i.id})${i.status ? ` [${i.status}]` : ''}`);
     out.push('');
   }
 

@@ -31,10 +31,12 @@ export interface DirtyTreeResult {
 }
 
 export function dirtyTree(repoPath: string, includePaths: string[]): DirtyTreeResult {
-  const args = ['status', '--porcelain', '-u'];
+  const args = ['--no-optional-locks', 'status', '--porcelain', '-u'];
   if (includePaths.length > 0) args.push('--', ...includePaths);
   const out = gitStatus(args, repoPath);
-  if (out.code !== 0) return { staged: [], unstaged: [], untracked: [] };
+  if (out.code !== 0) {
+    throw envError(`git status failed in ${repoPath} (exit ${out.code}): ${out.stderr}`);
+  }
 
   const staged: string[] = [];
   const unstaged: string[] = [];

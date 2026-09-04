@@ -103,6 +103,33 @@ describe('renderReleaseNotes', () => {
   });
 });
 
+describe('empty status', () => {
+  const emptyStatusVerified = {
+    ...verified,
+    items: verified.items.map((i) =>
+      i.id === 'PROJ-2' ? { ...i, status: '' } : i
+    )
+  };
+
+  it('report omits parenthesised status when empty', () => {
+    const text = renderReport(emptyStatusVerified);
+    expect(text).toMatch(/PROJ-2 · Claimed but absent(?! \()/);
+    expect(text).not.toMatch(/\(\)/);
+  });
+
+  it('changelog omits bracketed status when empty', () => {
+    const text = renderChangelog(emptyStatusVerified);
+    expect(text).toMatch(/PROJ-2\*\* Claimed but absent(?! \[)/);
+    expect(text).not.toMatch(/\[\]/);
+  });
+
+  it('release notes omits bracketed status when empty', () => {
+    const text = renderReleaseNotes(emptyStatusVerified);
+    expect(text).toMatch(/Claimed but absent/);
+    expect(text).not.toMatch(/\[\]/);
+  });
+});
+
 describe('untriaged output', () => {
   it('each renderer says so when given no notes', () => {
     for (const text of [renderReport(verified), renderChangelog(verified), renderReleaseNotes(verified)]) {
