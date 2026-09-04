@@ -151,6 +151,39 @@ describe('PR token resolution contract', () => {
   });
 });
 
+describe('fetchedAt plausibility', () => {
+  it('rejects a changeset with a future fetchedAt timestamp', () => {
+    const future = new Date(Date.now() + 60 * 60_000).toISOString();
+    const changeset = {
+      version: 1,
+      id: 'eval/future-clock',
+      source: { kind: 'test', ref: 'local', fetchedAt: future },
+      items: [
+        {
+          id: 'PROJ-101',
+          title: 'Handle empty range',
+          type: 'story',
+          status: 'done',
+          tokens: [{ matcher: 'ticket-key', token: 'PROJ-101' }]
+        }
+      ],
+      ranges: [{ repo: 'service', base: 'v1.0.0', head: 'v1.1.0' }]
+    };
+
+    const changesetPath = join(repo.path, 'changeset-future.json');
+    writeFileSync(changesetPath, JSON.stringify(changeset));
+
+    const outFuture = join(repo.path, 'verified-future.json');
+    const exit = runCheck([
+      '--config', configPath,
+      '--changeset', changesetPath,
+      '--out', outFuture
+    ]);
+
+    expect(exit).toBe(2);
+  });
+});
+
 describe('annotated tag dereference', () => {
   it('resolves annotated tags to commit SHAs, not tag object IDs', () => {
     const changeset = {

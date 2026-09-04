@@ -58,7 +58,9 @@ an MCP server, a CLI such as `gh`, or a pasted export. Then write
 
 - `source` is mandatory: `kind`, `ref` (the exact query or URL), `fetchedAt`.
 - **`fetchedAt` is the actual UTC time the provider response was received**, not
-  a constructed or approximate value. Capture it at provider-response time.
+  a constructed or approximate value. Capture it immediately when the provider
+  responds — for example, record the wall-clock time before you parse the
+  response. The CLI rejects timestamps in the future.
 - **`id` is opaque identity and is never matched against git.** Every identifier
   that might appear in a commit goes in `tokens` — including the item's own
   primary key or issue number. An item with no tokens is a schema error.
@@ -97,6 +99,13 @@ and the CLI correctly reports it as `unknown-reference`.
 
 Unresolved PR references are evidence, not defects. Classifying them requires
 triage, not token injection.
+
+After building the changeset, run `check` and inspect the output: every PR token
+you added should resolve to the expected item. If a PR token you added does not
+resolve (the commit carrying that PR number is not in the candidate range), the
+association was wrong — remove the token and re-run. This is a concrete
+verification that the association is supported by evidence in git, not only by
+the tracker's metadata.
 
 ## Step 2 — Confirm the ranges
 

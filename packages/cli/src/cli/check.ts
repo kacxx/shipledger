@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { toExitCode, usageError } from '../errors.js';
 import { parseOrUsage } from './args.js';
 import { loadConfig } from '../config/load.js';
-import { assertChangesetAgainstConfig, loadChangeset } from '../config/changeset.js';
+import { assertChangesetAgainstConfig, assertFetchedAtPlausible, loadChangeset } from '../config/changeset.js';
 import { compileAll } from '../core/compile.js';
 import { assertUsableRepo, resolveRange } from '../git/refs.js';
 import { walkRange } from '../git/log.js';
@@ -30,6 +30,7 @@ export function runCheck(argv: string[], cwd: string): number {
     const { config, configFingerprint } = loadConfig(resolve(cwd, values.config), CLI_VERSION);
     const compiled = compileAll(config);
     const changeset = loadChangeset(resolve(cwd, values.changeset));
+    assertFetchedAtPlausible(changeset.source.fetchedAt);
     assertChangesetAgainstConfig(changeset, config);
 
     const rangeByRepo = new Map(changeset.ranges.map((r) => [r.repo, r]));

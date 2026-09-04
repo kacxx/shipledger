@@ -95,6 +95,7 @@ describe('skill documents the real contracts', () => {
 
   it('requires fetchedAt to be captured at provider-response time', () => {
     expect(text).toMatch(/actual UTC time.*provider response/i);
+    expect(text).toMatch(/rejects timestamps in the future/i);
   });
 
   it('documents PR token resolution with demonstrable-association rule', () => {
@@ -104,5 +105,11 @@ describe('skill documents the real contracts', () => {
 
   it('documents annotated tag dereference using ^{commit}', () => {
     expect(text).toMatch(/rev-parse --verify.*\^{commit}/)
+  });
+
+  it('documents PR-association verification after building the changeset', () => {
+    expect(text).toMatch(/run.*check.*inspect/i);
+    expect(text).toMatch(/PR token/i);
+    expect(text).toMatch(/should resolve/i);
   });
 });

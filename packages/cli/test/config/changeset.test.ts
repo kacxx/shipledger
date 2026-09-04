@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { assertChangesetAgainstConfig } from '../../src/config/changeset.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { assertChangesetAgainstConfig, assertFetchedAtPlausible } from '../../src/config/changeset.js';
 import { mergeConfig } from '../../src/config/load.js';
 import type { Changeset, ChangesetItem } from '../../src/types.js';
 
@@ -82,5 +82,28 @@ describe('assertChangesetAgainstConfig', () => {
       expect((err as Error).message).toMatch(/ghost/);
       expect((err as Error).message).toMatch(/nope/);
     }
+  });
+});
+
+describe('assertFetchedAtPlausible', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('accepts a timestamp in the past', () => {
+    expect(() => assertFetchedAtPlausible('2026-01-01T00:00:00Z')).not.toThrow();
+  });
+
+  it('accepts a timestamp within the clock-skew tolerance', () => {
+    const nearFuture = new Date(Date.now() + 2 * 60_000).toISOString();
+    expect(() => assertFetchedAtPlausible(nearFuture)).not.toThrow();
+  });
+
+  it('rejects a timestamp clearly in the future', () => {
+    const future = new Date(Date.now() + 10 * 60_000).toISOString();
+    expect(() => assertFetchedAtPlausible(future)).toThrow(/future/i);
+  });
+
+  it('names the remedy in the error', () => {
+    const future = new Date(Date.now() + 10 * 60_000).toISOString();
+    expect(() => assertFetchedAtPlausible(future)).toThrow(/actual UTC time/i);
   });
 });
