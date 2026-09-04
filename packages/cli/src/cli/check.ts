@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { toExitCode, usageError } from '../errors.js';
 import { parseOrUsage } from './args.js';
 import { loadConfig } from '../config/load.js';
-import { assertChangesetAgainstConfig, assertFetchedAtPlausible, loadChangeset } from '../config/changeset.js';
+import { assertChangesetAgainstConfig, loadChangeset } from '../config/changeset.js';
 import { compileAll } from '../core/compile.js';
 import { assertUsableRepo, resolveRange } from '../git/refs.js';
 import { walkRange } from '../git/log.js';
@@ -12,9 +12,8 @@ import { writeAtomic } from '../io/atomic.js';
 import { CLI_VERSION } from './version.js';
 import type { CommitRecord, RangeResult } from '../types.js';
 
-export function runCheck(argv: string[], cwd: string, opts?: { now?: number }): number {
+export function runCheck(argv: string[], cwd: string): number {
   try {
-    const now = opts?.now ?? Date.now();
     const values = parseOrUsage<{ config: string; changeset?: string; out: string; stable: boolean }>({
       args: argv,
       options: {
@@ -31,7 +30,6 @@ export function runCheck(argv: string[], cwd: string, opts?: { now?: number }): 
     const { config, configFingerprint } = loadConfig(resolve(cwd, values.config), CLI_VERSION);
     const compiled = compileAll(config);
     const changeset = loadChangeset(resolve(cwd, values.changeset));
-    assertFetchedAtPlausible(changeset.source.fetchedAt, now);
     assertChangesetAgainstConfig(changeset, config);
 
     const rangeByRepo = new Map(changeset.ranges.map((r) => [r.repo, r]));

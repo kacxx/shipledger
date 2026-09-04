@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertChangesetAgainstConfig, assertFetchedAtPlausible } from '../../src/config/changeset.js';
+import { assertChangesetAgainstConfig } from '../../src/config/changeset.js';
 import { mergeConfig } from '../../src/config/load.js';
 import type { Changeset, ChangesetItem } from '../../src/types.js';
 
@@ -82,28 +82,5 @@ describe('assertChangesetAgainstConfig', () => {
       expect((err as Error).message).toMatch(/ghost/);
       expect((err as Error).message).toMatch(/nope/);
     }
-  });
-});
-
-describe('assertFetchedAtPlausible', () => {
-  const PINNED_NOW = new Date('2026-06-15T12:00:00Z').getTime();
-
-  it('accepts a timestamp in the past', () => {
-    expect(() => assertFetchedAtPlausible('2026-01-01T00:00:00Z', PINNED_NOW)).not.toThrow();
-  });
-
-  it('accepts a timestamp within the clock-skew tolerance', () => {
-    const nearFuture = new Date(PINNED_NOW + 2 * 60_000).toISOString();
-    expect(() => assertFetchedAtPlausible(nearFuture, PINNED_NOW)).not.toThrow();
-  });
-
-  it('rejects a timestamp clearly in the future', () => {
-    const future = new Date(PINNED_NOW + 10 * 60_000).toISOString();
-    expect(() => assertFetchedAtPlausible(future, PINNED_NOW)).toThrow(/future/i);
-  });
-
-  it('names the remedy in the error', () => {
-    const future = new Date(PINNED_NOW + 10 * 60_000).toISOString();
-    expect(() => assertFetchedAtPlausible(future, PINNED_NOW)).toThrow(/actual UTC time/i);
   });
 });

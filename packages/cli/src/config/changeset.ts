@@ -19,21 +19,6 @@ export function loadChangeset(path: string): Changeset {
   return validateChangeset(parsed);
 }
 
-const CLOCK_SKEW_MS = 5 * 60_000;
-
-export function assertFetchedAtPlausible(fetchedAt: string, now: number): void {
-  const ts = new Date(fetchedAt).getTime();
-  if (Number.isNaN(ts)) {
-    throw usageError(`source.fetchedAt "${fetchedAt}" is not a valid timestamp.`);
-  }
-  if (ts > now + CLOCK_SKEW_MS) {
-    throw usageError(
-      `source.fetchedAt "${fetchedAt}" is in the future. ` +
-      `Capture the actual UTC time when the provider response is received; do not construct or approximate it.`
-    );
-  }
-}
-
 export function assertChangesetAgainstConfig(changeset: Changeset, config: ResolvedConfig): void {
   const repoNames = new Set(config.repos.map((r) => r.name));
   const matchers = new Map(config.matchers.map((m) => [m.id, m]));

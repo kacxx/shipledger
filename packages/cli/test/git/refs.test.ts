@@ -112,7 +112,7 @@ describe('resolveRange', () => {
     }
   });
 
-  it('rejects a ref that starts with a dash to prevent option injection', () => {
+  it('treats a dash-prefixed ref as a name, not a git option', () => {
     repo = makeRepo();
     repo.commit('one');
     try {
@@ -120,7 +120,7 @@ describe('resolveRange', () => {
       throw new Error('should have thrown');
     } catch (err) {
       expect((err as CliError).exitCode).toBe(3);
-      expect((err as Error).message).toMatch(/dash/);
+      expect((err as Error).message).toMatch(/does not resolve/);
     }
   });
 

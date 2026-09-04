@@ -60,7 +60,8 @@ an MCP server, a CLI such as `gh`, or a pasted export. Then write
 - **`fetchedAt` is the actual UTC time the provider response was received**, not
   a constructed or approximate value. Capture it immediately when the provider
   responds — for example, record the wall-clock time before you parse the
-  response. The CLI rejects timestamps in the future.
+  response. A fabricated or approximate timestamp corrupts the audit trail and
+  makes the artifact non-reproducible.
 - **`id` is opaque identity and is never matched against git.** Every identifier
   that might appear in a commit goes in `tokens` — including the item's own
   primary key or issue number. An item with no tokens is a schema error.
@@ -145,8 +146,11 @@ configured include paths are not reported.
 ### Ref resolution and annotated tags
 
 The changeset records refs as-is (`v1.3.0`, `release/1.4`). The CLI resolves
-them to commit SHAs internally using `git rev-parse --verify <ref>^{commit}`,
-which correctly dereferences annotated tags to the underlying commit.
+them to commit SHAs internally using
+`git rev-parse --verify --end-of-options <ref>^{commit}`, which safely handles
+any ref string (including those starting with `-`) and correctly dereferences
+annotated tags to the underlying commit. All git commands use argument arrays
+(no shell) and `--end-of-options` to prevent option injection.
 
 When showing the operator the resolved SHA for confirmation, use the same
 dereference: `git rev-parse --verify <ref>^{commit}`. A bare

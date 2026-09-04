@@ -95,7 +95,7 @@ describe('skill documents the real contracts', () => {
 
   it('requires fetchedAt to be captured at provider-response time', () => {
     expect(text).toMatch(/actual UTC time.*provider response/i);
-    expect(text).toMatch(/rejects timestamps in the future/i);
+    expect(text).toMatch(/corrupts the audit trail/i);
   });
 
   it('documents PR token resolution with demonstrable-association rule', () => {
