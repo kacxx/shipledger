@@ -41,6 +41,15 @@ npx shipledger init --preset tracker-keys   # or github-oss
 unpinned preset, because an unpinned preset would let a CLI upgrade silently
 change the policy a release was judged against.
 
+### Inspect effective configuration
+
+`doctor` prints the fully resolved effective configuration, marking each section
+as `[preset]` (inherited from the preset) or `[adopter override]` (replaced by
+the config file). The CLI uses replace-only overrides — when a section is
+overridden, the entire preset default for that section is replaced, not merged.
+Review the effective config before running `check` so there are no surprises
+about which matchers, ignore rules, or policies apply.
+
 ## Step 1 — Build the changeset
 
 Fetch the claimed release from the user's tracker using whatever is available —
@@ -77,6 +86,29 @@ Do not invent `base` and `head`. Propose them and get confirmation:
 
 > "I'll compare `repo-a` from `v1.3.0` to `v1.4.0`, scoped to `packages/thing/**`.
 > Correct?"
+
+### Preflight before confirmation
+
+Before the operator confirms, run `doctor` with the changeset to validate the
+environment and surface any issues:
+
+```bash
+npx shipledger doctor --config shipledger.config.json --changeset changeset.json
+```
+
+This checks that each repository is a complete (non-shallow) clone, that the
+range refs resolve, and reports any staged, unstaged, or untracked changes under
+the configured include paths.
+
+**Shallow clones** cannot walk a commit range. `doctor` detects this and names
+the remedy (`git fetch --unshallow`). Present the remedy and wait — never fetch
+on the operator's behalf.
+
+**Dirty working tree** changes are informational, not blocking. The CLI
+reconciles against exact base/head commit SHAs, so working-tree modifications
+are excluded from the candidate. Report them so the operator knows, and
+explicitly state that they do not affect reconciliation. Changes outside
+configured include paths are not reported.
 
 ## Step 3 — Run the check
 

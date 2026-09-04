@@ -6,6 +6,24 @@ import { resolvePreset } from './presets.js';
 import { validateConfig } from './validate.js';
 import type { RawConfig, ResolvedConfig } from '../types.js';
 
+export type ConfigOrigin = 'preset' | 'adopter';
+
+export interface ConfigOrigins {
+  matchers: ConfigOrigin;
+  history: ConfigOrigin;
+  ignore: ConfigOrigin;
+  policy: ConfigOrigin;
+}
+
+export function configOrigins(raw: RawConfig): ConfigOrigins {
+  return {
+    matchers: raw.matchers !== undefined ? 'adopter' : 'preset',
+    history: raw.history !== undefined ? 'adopter' : 'preset',
+    ignore: raw.ignore !== undefined ? 'adopter' : 'preset',
+    policy: raw.policy !== undefined ? 'adopter' : 'preset'
+  };
+}
+
 export function mergeConfig(
   raw: RawConfig,
   configDir: string,
@@ -65,7 +83,7 @@ export function fingerprintConfig(config: ResolvedConfig, cliVersion: string): s
 export function loadConfig(
   path: string,
   cliVersion: string
-): { config: ResolvedConfig; configFingerprint: string } {
+): { config: ResolvedConfig; configFingerprint: string; origins: ConfigOrigins } {
   let text: string;
   try {
     text = readFileSync(path, 'utf8');
@@ -78,7 +96,8 @@ export function loadConfig(
   } catch (err) {
     throw usageError(`Config at ${path} is not valid JSON: ${(err as Error).message}`);
   }
-  const config = mergeConfig(validateConfig(parsed), dirname(resolve(path)));
+  const raw = validateConfig(parsed);
+  const config = mergeConfig(raw, dirname(resolve(path)));
   assertConfigIdentities(config);
-  return { config, configFingerprint: fingerprintConfig(config, cliVersion) };
+  return { config, configFingerprint: fingerprintConfig(config, cliVersion), origins: configOrigins(raw) };
 }

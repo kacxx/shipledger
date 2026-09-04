@@ -1,10 +1,10 @@
 import { resolve } from 'node:path';
 import { toExitCode } from '../errors.js';
 import { parseOrUsage } from './args.js';
-import { loadConfig } from '../config/load.js';
+import { loadConfig, type ConfigOrigin } from '../config/load.js';
 import { compileAll } from '../core/compile.js';
 import { assertChangesetAgainstConfig, loadChangeset } from '../config/changeset.js';
-import { assertUsableRepo, resolveRange } from '../git/refs.js';
+import { assertUsableRepo, dirtyTree, resolveRange } from '../git/refs.js';
 import { CLI_VERSION } from './version.js';
 
 type RangeCheck = { ok: true; compatible: boolean } | { ok: false };
@@ -54,7 +54,7 @@ export function runDoctor(argv: string[], cwd: string): number {
       strict: true
     });
 
-    const { config, configFingerprint } = loadConfig(resolve(cwd, values.config), CLI_VERSION);
+    const { config, configFingerprint, origins } = loadConfig(resolve(cwd, values.config), CLI_VERSION);
     compileAll(config);
 
     const changeset = values.changeset === undefined
@@ -66,6 +66,14 @@ export function runDoctor(argv: string[], cwd: string): number {
     lines.push(`preset: ${config.presetName}@${config.presetVersion}`);
     lines.push(`policy failOn: ${config.policy.failOn.join(', ') || '(none)'}`);
     lines.push(`config fingerprint: ${configFingerprint}`);
+
+    const tag = (o: ConfigOrigin): string => o === 'adopter' ? '[adopter override]' : '[preset]';
+    lines.push('');
+    lines.push('effective config:');
+    lines.push(`  matchers ${tag(origins.matchers)}: ${config.matchers.map((m) => `${m.id} (${m.namespace}, ${m.sources.join('+')})`).join(', ')}`);
+    lines.push(`  history  ${tag(origins.history)}: ${config.history}`);
+    lines.push(`  ignore   ${tag(origins.ignore)}: authors: ${config.ignore.authors.join(', ') || '(none)'}; subjects: ${config.ignore.subjects.join(', ') || '(none)'}`);
+    lines.push(`  policy   ${tag(origins.policy)}: failOn: ${config.policy.failOn.join(', ') || '(none)'}`);
 
     const range = values['skill-cli-range'];
     if (range !== undefined) {
@@ -82,10 +90,26 @@ export function runDoctor(argv: string[], cwd: string): number {
     }
     lines.push('');
 
+    const rangeByRepo = new Map(
+      (changeset?.ranges ?? []).map((r) => [r.repo, r] as const)
+    );
+
     for (const repo of config.repos) {
       try {
         assertUsableRepo(repo.path, repo.name);
         lines.push(`OK   repo ${repo.name} — ${repo.path}`);
+
+        const spec = rangeByRepo.get(repo.name);
+        const includes = spec?.include ?? [];
+        const dirty = dirtyTree(repo.path, includes);
+        const total = dirty.staged.length + dirty.unstaged.length + dirty.untracked.length;
+        if (total > 0) {
+          const scope = includes.length > 0 ? `under ${includes.join(', ')}` : 'in working tree';
+          lines.push(`INFO repo ${repo.name} — ${total} changed file(s) ${scope} (exact base/head SHAs determine reconciliation; these changes are excluded)`);
+          for (const f of dirty.staged) lines.push(`       staged: ${f}`);
+          for (const f of dirty.unstaged) lines.push(`       unstaged: ${f}`);
+          for (const f of dirty.untracked) lines.push(`       untracked: ${f}`);
+        }
       } catch (err) {
         exitCode = 3;
         lines.push(`FAIL repo ${repo.name} — ${(err as Error).message}`);
@@ -93,7 +117,6 @@ export function runDoctor(argv: string[], cwd: string): number {
     }
 
     if (changeset !== undefined) {
-      const rangeByRepo = new Map(changeset.ranges.map((r) => [r.repo, r]));
       lines.push('');
       for (const repo of config.repos) {
         const spec = rangeByRepo.get(repo.name);

@@ -24,6 +24,37 @@ const normalize = (p: string): string => {
   return process.platform === 'win32' ? resolved.replace(/\\/g, '/').toLowerCase() : resolved;
 };
 
+export interface DirtyTreeResult {
+  staged: string[];
+  unstaged: string[];
+  untracked: string[];
+}
+
+export function dirtyTree(repoPath: string, includePaths: string[]): DirtyTreeResult {
+  const args = ['status', '--porcelain', '-u'];
+  if (includePaths.length > 0) args.push('--', ...includePaths);
+  const out = gitStatus(args, repoPath);
+  if (out.code !== 0) return { staged: [], unstaged: [], untracked: [] };
+
+  const staged: string[] = [];
+  const unstaged: string[] = [];
+  const untracked: string[] = [];
+
+  for (const line of out.stdout.split('\n')) {
+    if (line.length < 4) continue;
+    const x = line[0] as string;
+    const y = line[1] as string;
+    const file = line.slice(3);
+    if (x === '?' && y === '?') {
+      untracked.push(file);
+    } else {
+      if (x !== ' ' && x !== '?') staged.push(file);
+      if (y !== ' ' && y !== '?') unstaged.push(file);
+    }
+  }
+  return { staged, unstaged, untracked };
+}
+
 export function assertUsableRepo(repoPath: string, repoName: string): void {
   if (!existsSync(repoPath)) {
     throw envError(`Repo "${repoName}" is configured at ${repoPath}, which does not exist. Clone it there or fix "path" in the config.`);

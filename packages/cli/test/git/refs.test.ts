@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
-import { assertUsableRepo, resolveRange } from '../../src/git/refs.js';
+import { assertUsableRepo, dirtyTree, resolveRange } from '../../src/git/refs.js';
 import { CliError } from '../../src/errors.js';
 import { makeRepo, type FixtureRepo } from '../helpers/repo.js';
 
@@ -158,5 +158,48 @@ describe('resolveRange', () => {
     repo.tag('v1.0');
     // HEAD~1 contains an operator, so it can only resolve one way.
     expect(() => resolveRange({ repo: 'repo-a', base: 'HEAD~1', head: 'HEAD' }, repo.path)).not.toThrow();
+  });
+});
+
+describe('dirtyTree', () => {
+  it('returns empty when the working tree is clean', () => {
+    repo = makeRepo();
+    repo.commit('init');
+    const result = dirtyTree(repo!.path, []);
+    expect(result).toEqual({ staged: [], unstaged: [], untracked: [] });
+  });
+
+  it('detects staged, unstaged, and untracked files', () => {
+    repo = makeRepo();
+    repo.commit('init');
+    writeFileSync(join(repo!.path, 'f1.txt'), 'modified\n');
+    writeFileSync(join(repo!.path, 'new.txt'), 'untracked\n');
+    writeFileSync(join(repo!.path, 'staged.txt'), 'staged\n');
+    repo!.run(['add', 'staged.txt']);
+
+    const result = dirtyTree(repo!.path, []);
+    expect(result.staged).toContain('staged.txt');
+    expect(result.unstaged).toContain('f1.txt');
+    expect(result.untracked).toContain('new.txt');
+  });
+
+  it('scopes to include paths', () => {
+    repo = makeRepo();
+    mkdirSync(join(repo!.path, 'pkg'));
+    writeFileSync(join(repo!.path, 'pkg', 'a.txt'), 'a\n');
+    repo!.run(['add', '.']);
+    repo!.run(['commit', '-q', '-m', 'init']);
+
+    writeFileSync(join(repo!.path, 'pkg', 'a.txt'), 'changed\n');
+    writeFileSync(join(repo!.path, 'outside.txt'), 'also changed\n');
+
+    const scoped = dirtyTree(repo!.path, ['pkg/**']);
+    expect(scoped.unstaged).toContain('pkg/a.txt');
+    expect(scoped.unstaged).not.toContain('outside.txt');
+    expect(scoped.untracked).not.toContain('outside.txt');
+
+    const unscoped = dirtyTree(repo!.path, []);
+    expect(unscoped.unstaged).toContain('pkg/a.txt');
+    expect(unscoped.untracked).toContain('outside.txt');
   });
 });

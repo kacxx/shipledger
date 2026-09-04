@@ -14,7 +14,7 @@ Commits with no reference (1):
   repo-a cccccccc · tidy up [tooling-or-ci: lint config only]
 
 Items claimed with no commits (1):
-  PROJ-2 · Claimed but absent [not-done: moved out of scope]
+  PROJ-2 · Claimed but absent (in-progress) [not-done: moved out of scope]
 
 Ignored (1):
   repo-a dddddddd · Merge branch main — subjects:^Merge branch

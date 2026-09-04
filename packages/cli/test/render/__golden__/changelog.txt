@@ -11,7 +11,7 @@
 
 ## Claimed but not found in git
 
-- **PROJ-2** Claimed but absent — not-done
+- **PROJ-2** Claimed but absent [in-progress] — not-done
 
 ## Incomplete ranges
 

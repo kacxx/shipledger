@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runDoctor } from '../../src/cli/doctor.js';
@@ -129,6 +129,79 @@ describe('runDoctor', () => {
     const out = capture();
     expect(runDoctor([...setup(repo.path), '--skill-cli-range', 'sometimes'], process.cwd())).toBe(3);
     expect(out.text()).toMatch(/cannot interpret/i);
+  });
+
+  it('shows effective config with preset origin markers', () => {
+    repo = healthyRepo();
+    const out = capture();
+    runDoctor(setup(repo.path), process.cwd());
+    const text = out.text();
+    expect(text).toMatch(/effective config:/);
+    expect(text).toMatch(/matchers \[preset\]:/);
+    expect(text).toMatch(/ticket-key/);
+    expect(text).toMatch(/history\s+\[preset\]:/);
+    expect(text).toMatch(/ignore\s+\[preset\]:/);
+    expect(text).toMatch(/policy\s+\[preset\]:/);
+  });
+
+  it('marks adopter overrides distinctly from preset defaults', () => {
+    repo = healthyRepo();
+    work = mkdtempSync(join(tmpdir(), 'shipledger-doc-'));
+    writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: repo.path }],
+      policy: { failOn: ['unknown-reference'] }
+    }));
+    const out = capture();
+    runDoctor(['--config', join(work, 'config.json')], process.cwd());
+    const text = out.text();
+    expect(text).toMatch(/policy\s+\[adopter override\]:/);
+    expect(text).toMatch(/matchers \[preset\]:/);
+  });
+
+  it('reports dirty files under include paths as INFO', () => {
+    repo = healthyRepo();
+    mkdirSync(join(repo.path, 'pkg'));
+    writeFileSync(join(repo.path, 'pkg', 'dirty.txt'), 'dirty\n');
+
+    work = mkdtempSync(join(tmpdir(), 'shipledger-doc-'));
+    writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: repo.path }]
+    }));
+    writeFileSync(join(work, 'changeset.json'), JSON.stringify({
+      version: 1, id: 'r', source: { kind: 'test', ref: 'l', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [], ranges: [{ repo: 'repo-a', base: 'v1', head: 'v2', include: ['pkg/**'] }]
+    }));
+
+    const out = capture();
+    const code = runDoctor(['--config', join(work, 'config.json'), '--changeset', join(work, 'changeset.json')], process.cwd());
+    expect(code).toBe(0);
+    const text = out.text();
+    expect(text).toMatch(/INFO repo repo-a/);
+    expect(text).toMatch(/changed file\(s\) under pkg\/\*\*/);
+    expect(text).toMatch(/untracked:.*pkg\/dirty\.txt/);
+    expect(text).toMatch(/these changes are excluded/);
+  });
+
+  it('does not report dirt outside include paths', () => {
+    repo = healthyRepo();
+    writeFileSync(join(repo.path, 'outside.txt'), 'outside\n');
+
+    work = mkdtempSync(join(tmpdir(), 'shipledger-doc-'));
+    writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: repo.path }]
+    }));
+    writeFileSync(join(work, 'changeset.json'), JSON.stringify({
+      version: 1, id: 'r', source: { kind: 'test', ref: 'l', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [], ranges: [{ repo: 'repo-a', base: 'v1', head: 'v2', include: ['pkg/**'] }]
+    }));
+
+    const out = capture();
+    runDoctor(['--config', join(work, 'config.json'), '--changeset', join(work, 'changeset.json')], process.cwd());
+    expect(out.text()).not.toMatch(/INFO/);
+    expect(out.text()).not.toMatch(/outside\.txt/);
   });
 });
 
