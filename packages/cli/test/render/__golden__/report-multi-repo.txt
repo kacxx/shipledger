@@ -1,0 +1,84 @@
+# Reconciliation Report — release 2.0.0
+
+## Summary
+
+| Field | Value |
+| --- | --- |
+| Verdict | **FAIL** |
+| Preset | tracker-keys@1 |
+| History | first-parent |
+| Config fingerprint | `sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789` |
+| Items linked | 2 / 3 |
+| Commits | 7 (1 ignored) |
+| Violations | no-reference=2, unknown-reference=1, item-without-commits=1, range-divergence=1 |
+
+**Source:** github-milestone · https://github.com/example/monorepo/milestone/5 · fetched 2026-06-15T14:30:00Z
+
+## backend
+
+### Range
+
+| Field | Value |
+| --- | --- |
+| Refs | v1.9.0..v2.0.0 |
+| Base SHA | `ba5e000100000000000000000000000000000000` |
+| Head SHA | `bead000100000000000000000000000000000000` |
+| Merge base | `ba5e000100000000000000000000000000000000` |
+| Ancestry | base is ancestor of head |
+| Path scope | `packages/api/**` |
+
+### Commits
+
+| Repo | SHA | Subject | Status | Detail |
+| --- | --- | --- | --- | --- |
+| backend | `aa000001` | PROJ-10 add \| pipe support \(\#50\) | linked | → PROJ-10 |
+| backend | `aa000002` | PROJ-11 fix \`backtick\` rendering | linked | → PROJ-11 |
+| backend | `aa000003` | PROJ-99 stray ref and OTHER-7 too | unknown\-reference | PROJ-99 (ticket-key) other-release: belongs to 1.8; OTHER-7 (ticket-key) other-release: different project |
+| backend | `aa000004` | tidy up \<html\> \& stuff | no\-reference |  tooling-or-ci: html cleanup |
+| backend | `aa000005` | Merge branch 'main' | ignored | subjects:^Merge branch |
+
+## frontend
+
+### Range
+
+| Field | Value |
+| --- | --- |
+| Refs | v1.9.0..v2.0.0 |
+| Base SHA | `ba5e000200000000000000000000000000000000` |
+| Head SHA | `bead000200000000000000000000000000000000` |
+| Merge base | `ba5e000200000000000000000000000000000000` |
+| Ancestry | **diverged** — 3 commit(s) only in base |
+| Finding | range\-divergence expected-divergence: hotfix branch cut |
+
+### Commits
+
+| Repo | SHA | Subject | Status | Detail |
+| --- | --- | --- | --- | --- |
+| frontend | `ff000001` | PROJ-11 fix rendering in UI | linked | → PROJ-11 |
+| frontend | `ff000002` | no ticket here | no\-reference |  process-miss: dev forgot ticket |
+
+## Claimed Items
+
+| Item | Title | Type | Status | Commits | Finding | Triage |
+| --- | --- | --- | --- | --- | --- | --- |
+| [PROJ-10](https://tracker.example.com/PROJ-10) | Add \| pipe support | feature | done | `aa000001` (backend) | — | — |
+| [PROJ-11](https://tracker.example.com/PROJ-11) | Fix \`backtick\` rendering | bug | done | `aa000002` (backend), `ff000001` (frontend) | — | — |
+| PROJ-12 | Update \<angle\> \& "quote" docs | chore | in-progress | — | item\-without\-commits | not-done: docs not ready yet |
+
+## Unresolved
+
+3 affected commit(s), 4 unresolved token(s).
+
+### backend
+
+- `aa000003` PROJ-99 stray ref and OTHER-7 too — PROJ-99 (ticket-key, subject) other-release: belongs to 1.8
+- `aa000003` PROJ-99 stray ref and OTHER-7 too — OTHER-7 (ticket-key, subject) other-release: different project
+- `aa000004` tidy up \<html\> \& stuff — no reference tooling-or-ci: html cleanup
+
+### frontend
+
+- `ff000002` no ticket here — no reference process-miss: dev forgot ticket
+
+---
+
+Engine verdict is based on policy and git evidence only. Tracker claims are taken on trust.

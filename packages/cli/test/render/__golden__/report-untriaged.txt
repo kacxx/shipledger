@@ -1,21 +1,59 @@
-shipledger report — release 1.4.0
-verdict: FAIL   preset: tracker-keys@1   history: first-parent
-violations: no-reference=1, unknown-reference=1, item-without-commits=1, range-divergence=1
-items 1/2 linked · commits 4 (1 ignored)
-triage: UNTRIAGED — no notes supplied
+# Reconciliation Report — release 1.4.0
 
-WARN range repo-a v1.3.0..v1.4.0 — refs diverge; 2 commit(s) reachable from base but not head are invisible
+## Summary
 
-Commits referencing work outside this release (1):
-  repo-a bbbbbbbb · PROJ-1 and PROJ-9 together
-    → PROJ-9 (ticket-key, seen in subject)
-    also linked to PROJ-1
+| Field | Value |
+| --- | --- |
+| Verdict | **FAIL** |
+| Preset | tracker-keys@1 |
+| History | first-parent |
+| Config fingerprint | `sha256:0000000000000000000000000000000000000000000000000000000000000000` |
+| Items linked | 1 / 2 |
+| Commits | 4 (1 ignored) |
+| Violations | no-reference=1, unknown-reference=1, item-without-commits=1, range-divergence=1 |
+| Triage | UNTRIAGED — no notes supplied |
 
-Commits with no reference (1):
-  repo-a cccccccc · tidy up
+**Source:** test · local · fetched 2026-01-01T00:00:00Z
 
-Items claimed with no commits (1):
-  PROJ-2 · Claimed but absent (in-progress)
+## repo-a
 
-Ignored (1):
-  repo-a dddddddd · Merge branch main — subjects:^Merge branch
+### Range
+
+| Field | Value |
+| --- | --- |
+| Refs | v1.3.0..v1.4.0 |
+| Base SHA | `1111111111111111111111111111111111111111` |
+| Head SHA | `2222222222222222222222222222222222222222` |
+| Merge base | `1111111111111111111111111111111111111111` |
+| Ancestry | **diverged** — 2 commit(s) only in base |
+| Finding | range\-divergence |
+
+### Commits
+
+| Repo | SHA | Subject | Status | Detail |
+| --- | --- | --- | --- | --- |
+| repo-a | `aaaaaaaa` | PROJ-1 add thing | linked | → PROJ-1 |
+| repo-a | `bbbbbbbb` | PROJ-1 and PROJ-9 together | unknown\-reference | PROJ-9 (ticket-key) · also → PROJ-1 |
+| repo-a | `cccccccc` | tidy up | no\-reference |  |
+| repo-a | `dddddddd` | Merge branch main | ignored | subjects:^Merge branch |
+
+## Claimed Items
+
+| Item | Title | Type | Status | Commits | Finding | Triage |
+| --- | --- | --- | --- | --- | --- | --- |
+| PROJ-1 | Add the thing | story | done | `aaaaaaaa` (repo-a), `bbbbbbbb` (repo-a) | — | — |
+| PROJ-2 | Claimed but absent | bug | in-progress | — | item\-without\-commits | — |
+
+## Unresolved
+
+2 affected commit(s), 2 unresolved token(s).
+
+### repo-a
+
+- `bbbbbbbb` PROJ-1 and PROJ-9 together — PROJ-9 (ticket-key, subject)
+- `cccccccc` tidy up — no reference
+
+---
+
+Engine verdict is based on policy and git evidence only. Tracker claims are taken on trust.
+Findings are untriaged — no notes were supplied.
