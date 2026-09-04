@@ -11,6 +11,7 @@ export interface FixtureRepo {
   branch(name: string): void;
   checkout(name: string): void;
   tag(name: string): void;
+  annotatedTag(name: string, message: string): void;
   moveTag(name: string): void;
   mergeNoFf(branch: string, subject: string): string;
   rebaseOnto(branch: string): void;
@@ -52,6 +53,7 @@ export function makeRepo(): FixtureRepo {
     branch(name) { run(['branch', name]); },
     checkout(name) { run(['checkout', '-q', name]); },
     tag(name) { run(['tag', name]); },
+    annotatedTag(name, message) { run(['tag', '-a', name, '-m', message]); },
     moveTag(name) { run(['tag', '-f', name]); },
     mergeNoFf(branch, subject) {
       run(['merge', '-q', '--no-ff', '-m', subject, branch]);

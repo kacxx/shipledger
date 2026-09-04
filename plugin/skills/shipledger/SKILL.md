@@ -57,6 +57,8 @@ an MCP server, a CLI such as `gh`, or a pasted export. Then write
 `changeset.json`.
 
 - `source` is mandatory: `kind`, `ref` (the exact query or URL), `fetchedAt`.
+- **`fetchedAt` is the actual UTC time the provider response was received**, not
+  a constructed or approximate value. Capture it at provider-response time.
 - **`id` is opaque identity and is never matched against git.** Every identifier
   that might appear in a commit goes in `tokens` — including the item's own
   primary key or issue number. An item with no tokens is a schema error.
@@ -79,6 +81,22 @@ an MCP server, a CLI such as `gh`, or a pasted export. Then write
   number rather than an issue number, the token list is the only thing that
   connects them. You have the forge API; the CLI does not.
 - V1 allows **one range per repo**. Multiple paths go in that range's `include`.
+
+### Resolving PR tokens from forge evidence
+
+When a claimed item was merged through a pull request, include the PR number as
+a `pr-ref` token so the CLI can link the squash-merge commit. Look up associated
+PRs from the forge API (e.g., `gh pr list --search "PROJ-101"` or the tracker's
+linked-PR field).
+
+**Only add a PR token when there is demonstrable association** — the PR
+implements the claimed item, or the tracker/forge explicitly links them. Do not
+guess. If a commit references `#42` and `#43`, but only `#42` implements
+`PROJ-101`, then `PROJ-101`'s tokens include `#42` only. `#43` stays unresolved
+and the CLI correctly reports it as `unknown-reference`.
+
+Unresolved PR references are evidence, not defects. Classifying them requires
+triage, not token injection.
 
 ## Step 2 — Confirm the ranges
 
@@ -109,6 +127,17 @@ reconciles against exact base/head commit SHAs, so working-tree modifications
 are excluded from the candidate. Report them so the operator knows, and
 explicitly state that they do not affect reconciliation. Changes outside
 configured include paths are not reported.
+
+### Ref resolution and annotated tags
+
+The changeset records refs as-is (`v1.3.0`, `release/1.4`). The CLI resolves
+them to commit SHAs internally using `git rev-parse --verify <ref>^{commit}`,
+which correctly dereferences annotated tags to the underlying commit.
+
+When showing the operator the resolved SHA for confirmation, use the same
+dereference: `git rev-parse --verify <ref>^{commit}`. A bare
+`git rev-parse <ref>` on an annotated tag returns the tag object ID, not the
+commit — presenting that as a commit SHA is incorrect.
 
 ## Step 3 — Run the check
 
