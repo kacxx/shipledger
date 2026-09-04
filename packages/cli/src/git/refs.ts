@@ -31,7 +31,7 @@ export interface DirtyTreeResult {
 }
 
 export function dirtyTree(repoPath: string, includePaths: string[]): DirtyTreeResult {
-  const args = ['--no-optional-locks', 'status', '--porcelain', '-u'];
+  const args = ['--no-optional-locks', 'status', '--porcelain', '-z', '-u'];
   if (includePaths.length > 0) args.push('--', ...includePaths);
   const out = gitStatus(args, repoPath);
   if (out.code !== 0) {
@@ -42,16 +42,19 @@ export function dirtyTree(repoPath: string, includePaths: string[]): DirtyTreeRe
   const unstaged: string[] = [];
   const untracked: string[] = [];
 
-  for (const line of out.stdout.split('\n')) {
-    if (line.length < 4) continue;
-    const x = line[0] as string;
-    const y = line[1] as string;
-    const file = line.slice(3);
+  const entries = out.stdout.split('\0');
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i] as string;
+    if (entry.length < 3) continue;
+    const x = entry[0] as string;
+    const y = entry[1] as string;
+    const file = entry.slice(3);
     if (x === '?' && y === '?') {
       untracked.push(file);
     } else {
       if (x !== ' ' && x !== '?') staged.push(file);
       if (y !== ' ' && y !== '?') unstaged.push(file);
+      if (x === 'R' || x === 'C') i++;
     }
   }
   return { staged, unstaged, untracked };
