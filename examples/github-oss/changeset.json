@@ -19,5 +19,15 @@
       ]
     }
   ],
+  "links": {
+    "repos": {
+      "repo-a": {
+        "commit": "https://github.com/example/repo-a/commit/{sha}",
+        "references": {
+          "pr-ref": "https://github.com/example/repo-a/pull/{token}"
+        }
+      }
+    }
+  },
   "ranges": [{ "repo": "repo-a", "base": "v1.3.0", "head": "v1.4.0" }]
 }

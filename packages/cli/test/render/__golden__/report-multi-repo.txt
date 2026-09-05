@@ -32,11 +32,11 @@
 
 | Repo | SHA | Subject | Status | Detail |
 | --- | --- | --- | --- | --- |
-| backend | `aa000001` | PROJ-10 add \| pipe support \(\#50\) | linked | → PROJ-10 |
-| backend | `aa000002` | PROJ-11 fix \`backtick\` rendering | linked | → PROJ-11 |
-| backend | `aa000003` | PROJ-99 stray ref and OTHER-7 too | unknown\-reference | PROJ-99 (ticket-key) other-release: belongs to 1.8; OTHER-7 (ticket-key) other-release: different project |
-| backend | `aa000004` | tidy up \<html\> \& stuff | no\-reference |  tooling-or-ci: html cleanup |
-| backend | `aa000005` | Merge branch 'main' | ignored | subjects:^Merge branch |
+| backend | [`aa000001`](https://github.com/example/backend/commit/aa00000100000000000000000000000000000000) | PROJ-10 add \| pipe support \(\#50\) | linked | → [PROJ-10](https://tracker.example.com/PROJ-10) |
+| backend | [`aa000002`](https://github.com/example/backend/commit/aa00000200000000000000000000000000000000) | PROJ-11 fix \`backtick\` rendering | linked | → [PROJ-11](https://tracker.example.com/PROJ-11) |
+| backend | [`aa000003`](https://github.com/example/backend/commit/aa00000300000000000000000000000000000000) | PROJ-99 stray ref and OTHER-7 too | unknown\-reference | [PROJ-99](https://tracker.example.com/browse/PROJ-99) (ticket-key) other-release: belongs to 1.8; [OTHER-7](https://tracker.example.com/browse/OTHER-7) (ticket-key) other-release: different project |
+| backend | [`aa000004`](https://github.com/example/backend/commit/aa00000400000000000000000000000000000000) | tidy up \<html\> \& stuff | no\-reference |  tooling-or-ci: html cleanup |
+| backend | [`aa000005`](https://github.com/example/backend/commit/aa00000500000000000000000000000000000000) | Merge branch 'main' | ignored | subjects:^Merge branch |
 
 ## frontend
 
@@ -55,15 +55,15 @@
 
 | Repo | SHA | Subject | Status | Detail |
 | --- | --- | --- | --- | --- |
-| frontend | `ff000001` | PROJ-11 fix rendering in UI | linked | → PROJ-11 |
-| frontend | `ff000002` | no ticket here | no\-reference |  process-miss: dev forgot ticket |
+| frontend | [`ff000001`](https://github.com/example/frontend/commit/ff00000100000000000000000000000000000000) | PROJ-11 fix rendering in UI | linked | → [PROJ-11](https://tracker.example.com/PROJ-11) |
+| frontend | [`ff000002`](https://github.com/example/frontend/commit/ff00000200000000000000000000000000000000) | no ticket here | no\-reference |  process-miss: dev forgot ticket |
 
 ## Claimed Items
 
 | Item | Title | Type | Status | Commits | Finding | Triage |
 | --- | --- | --- | --- | --- | --- | --- |
-| [PROJ-10](https://tracker.example.com/PROJ-10) | Add \| pipe support | feature | done | `aa000001` (backend) | — | — |
-| [PROJ-11](https://tracker.example.com/PROJ-11) | Fix \`backtick\` rendering | bug | done | `aa000002` (backend), `ff000001` (frontend) | — | — |
+| [PROJ-10](https://tracker.example.com/PROJ-10) | Add \| pipe support | feature | done | [`aa000001`](https://github.com/example/backend/commit/aa00000100000000000000000000000000000000) (backend) | — | — |
+| [PROJ-11](https://tracker.example.com/PROJ-11) | Fix \`backtick\` rendering | bug | done | [`aa000002`](https://github.com/example/backend/commit/aa00000200000000000000000000000000000000) (backend), [`ff000001`](https://github.com/example/frontend/commit/ff00000100000000000000000000000000000000) (frontend) | — | — |
 | PROJ-12 | Update \<angle\> \& "quote" docs | chore | in-progress | — | item\-without\-commits | not-done: docs not ready yet |
 
 ## Unresolved
@@ -74,15 +74,15 @@
 
 | Commit | Reference | Seen in | Classification | Operator note |
 | --- | --- | --- | --- | --- |
-| `aa000003` PROJ-99 stray ref and OTHER-7 too | PROJ-99 (ticket-key) | subject | other-release | belongs to 1.8 |
-| `aa000003` PROJ-99 stray ref and OTHER-7 too | OTHER-7 (ticket-key) | subject | other-release | different project |
-| `aa000004` tidy up \<html\> \& stuff | — | — | tooling-or-ci | html cleanup |
+| [`aa000003`](https://github.com/example/backend/commit/aa00000300000000000000000000000000000000) PROJ-99 stray ref and OTHER-7 too | [PROJ-99](https://tracker.example.com/browse/PROJ-99) (ticket-key) | subject | other-release | belongs to 1.8 |
+| [`aa000003`](https://github.com/example/backend/commit/aa00000300000000000000000000000000000000) PROJ-99 stray ref and OTHER-7 too | [OTHER-7](https://tracker.example.com/browse/OTHER-7) (ticket-key) | subject | other-release | different project |
+| [`aa000004`](https://github.com/example/backend/commit/aa00000400000000000000000000000000000000) tidy up \<html\> \& stuff | — | — | tooling-or-ci | html cleanup |
 
 ### frontend
 
 | Commit | Reference | Seen in | Classification | Operator note |
 | --- | --- | --- | --- | --- |
-| `ff000002` no ticket here | — | — | process-miss | dev forgot ticket |
+| [`ff000002`](https://github.com/example/frontend/commit/ff00000200000000000000000000000000000000) no ticket here | — | — | process-miss | dev forgot ticket |
 
 ---
 

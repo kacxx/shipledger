@@ -62,12 +62,22 @@ export interface ChangesetItem {
 export interface RangeSpec { repo: string; base: string; head: string; include?: string[] }
 export interface ChangesetSource { kind: string; ref: string; fetchedAt: string }
 
+export interface RepoLinks {
+  commit?: string;
+  references?: Record<string, string>;
+}
+
+export interface LinkMetadata {
+  repos?: Record<string, RepoLinks>;
+}
+
 export interface Changeset {
   version: 1;
   id: string;
   source: ChangesetSource;
   items: ChangesetItem[];
   ranges: RangeSpec[];
+  links?: LinkMetadata;
 }
 
 export interface CommitRecord {
@@ -145,7 +155,7 @@ export interface VerifiedChangeset {
   history: HistoryMode;
   configFingerprint: string;
   policy: PolicyConfig;
-  changeset: { id: string; source: ChangesetSource; items: ChangesetItem[] };
+  changeset: { id: string; source: ChangesetSource; items: ChangesetItem[]; links?: LinkMetadata };
   ranges: RangeResult[];
   commits: CommitResult[];
   items: ItemResult[];

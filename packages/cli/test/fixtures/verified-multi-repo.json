@@ -12,7 +12,24 @@
       { "id": "PROJ-10", "title": "Add | pipe support", "type": "feature", "status": "done", "url": "https://tracker.example.com/PROJ-10", "tokens": [{ "matcher": "ticket-key", "token": "PROJ-10" }, { "matcher": "pr-ref", "token": "#50", "repo": "backend" }] },
       { "id": "PROJ-11", "title": "Fix `backtick` rendering", "type": "bug", "status": "done", "url": "https://tracker.example.com/PROJ-11", "tokens": [{ "matcher": "ticket-key", "token": "PROJ-11" }] },
       { "id": "PROJ-12", "title": "Update <angle> & \"quote\" docs", "type": "chore", "status": "in-progress", "tokens": [{ "matcher": "ticket-key", "token": "PROJ-12" }] }
-    ]
+    ],
+    "links": {
+      "repos": {
+        "backend": {
+          "commit": "https://github.com/example/backend/commit/{sha}",
+          "references": {
+            "ticket-key": "https://tracker.example.com/browse/{token}",
+            "pr-ref": "https://github.com/example/backend/pull/{token}"
+          }
+        },
+        "frontend": {
+          "commit": "https://github.com/example/frontend/commit/{sha}",
+          "references": {
+            "ticket-key": "https://tracker.example.com/browse/{token}"
+          }
+        }
+      }
+    }
   },
   "ranges": [
     { "repo": "backend", "base": "v1.9.0", "baseSha": "ba5e000100000000000000000000000000000000", "head": "v2.0.0", "headSha": "bead000100000000000000000000000000000000", "include": ["packages/api/**"], "mergeBase": "ba5e000100000000000000000000000000000000", "baseIsAncestorOfHead": true, "commitsOnlyInBase": 0, "findings": [] },

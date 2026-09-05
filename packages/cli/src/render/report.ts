@@ -1,5 +1,5 @@
 import { buildNoteLookup, commitKey, referenceKey } from '../notes.js';
-import type { CommitResult, NotesFile, RangeResult, VerifiedChangeset } from '../types.js';
+import type { CommitResult, LinkMetadata, NotesFile, RangeResult, VerifiedChangeset } from '../types.js';
 
 const short = (sha: string): string => sha.slice(0, 8);
 
@@ -16,8 +16,7 @@ function codeSpan(text: string): string {
   return `${fence} ${safe} ${fence}`;
 }
 
-function safeItemUrl(raw: string | undefined): string | null {
-  if (raw === undefined) return null;
+function safeUrl(raw: string): string | null {
   // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f\x7f]/.test(raw)) return null;
   let url: URL;
@@ -31,6 +30,44 @@ function safeItemUrl(raw: string | undefined): string | null {
   return url.href.replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
+function expandTemplate(template: string, vars: Record<string, string>): string | null {
+  let hasUnresolved = false;
+  const expanded = template.replace(/\{(\w+)\}/g, (match, key: string) => {
+    const val = vars[key];
+    if (val === undefined) { hasUnresolved = true; return match; }
+    return encodeURIComponent(val);
+  });
+  if (hasUnresolved) return null;
+  return safeUrl(expanded);
+}
+
+function commitUrl(links: LinkMetadata | undefined, repo: string, sha: string): string | null {
+  const tpl = links?.repos?.[repo]?.commit;
+  if (!tpl) return null;
+  return expandTemplate(tpl, { sha });
+}
+
+function referenceUrl(links: LinkMetadata | undefined, repo: string, matcher: string, token: string): string | null {
+  const tpl = links?.repos?.[repo]?.references?.[matcher];
+  if (!tpl) return null;
+  return expandTemplate(tpl, { token });
+}
+
+function linkedSha(links: LinkMetadata | undefined, repo: string, sha: string): string {
+  const dest = commitUrl(links, repo, sha);
+  return dest ? `[\`${short(sha)}\`](${dest})` : `\`${short(sha)}\``;
+}
+
+function linkedItemId(id: string, itemUrls: Map<string, string>): string {
+  const dest = itemUrls.get(id);
+  return dest ? `[${mdEscape(id)}](${dest})` : mdEscape(id);
+}
+
+function linkedRefToken(links: LinkMetadata | undefined, repo: string, matcher: string, token: string): string {
+  const dest = referenceUrl(links, repo, matcher, token);
+  return dest ? `[${mdEscape(token)}](${dest})` : mdEscape(token);
+}
+
 function noteSuffix(entry: { classification: string; note: string } | undefined): string {
   return entry ? ` ${mdEscape(entry.classification)}: ${mdEscape(entry.note)}` : '';
 }
@@ -39,9 +76,10 @@ function commitRow(
   c: CommitResult,
   status: string,
   detail: string,
-  noteSuffix: string
+  noteSuffix: string,
+  links: LinkMetadata | undefined
 ): string {
-  return `| ${mdEscape(c.repo)} | \`${short(c.sha)}\` | ${mdEscape(c.subject)} | ${status} | ${detail}${noteSuffix} |`;
+  return `| ${mdEscape(c.repo)} | ${linkedSha(links, c.repo, c.sha)} | ${mdEscape(c.subject)} | ${status} | ${detail}${noteSuffix} |`;
 }
 
 function countFindings(verified: VerifiedChangeset): number {
@@ -65,6 +103,15 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
   const out: string[] = [];
   const s = verified.summary;
   const lookup = buildNoteLookup(notes ?? { version: 1 });
+  const links = verified.changeset.links;
+
+  const itemUrls = new Map<string, string>();
+  for (const ci of verified.changeset.items) {
+    if (ci.url !== undefined) {
+      const dest = safeUrl(ci.url);
+      if (dest) itemUrls.set(ci.id, dest);
+    }
+  }
 
   out.push(`# Reconciliation Report — ${mdEscape(verified.changeset.id)}`);
   out.push('');
@@ -132,7 +179,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
 
       for (const c of repoCommits) {
         if (c.ignored) {
-          out.push(commitRow(c, 'ignored', mdEscape(c.ignored.rule), ''));
+          out.push(commitRow(c, 'ignored', mdEscape(c.ignored.rule), '', links));
           continue;
         }
 
@@ -142,17 +189,17 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
         if (unresolved.length > 0) {
           const tokens = unresolved.map((r) => {
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            return `${mdEscape(r.token)} (${mdEscape(r.matcher)})${noteSuffix(entry)}`;
+            return `${linkedRefToken(links, c.repo, r.matcher, r.token)} (${mdEscape(r.matcher)})${noteSuffix(entry)}`;
           }).join('; ');
-          const also = linked.length > 0 ? ` · also → ${[...new Set(linked)].map((id) => mdEscape(id)).join(', ')}` : '';
-          out.push(commitRow(c, 'unknown\\-reference', `${tokens}${also}`, ''));
+          const also = linked.length > 0 ? ` · also → ${[...new Set(linked)].map((id) => linkedItemId(id, itemUrls)).join(', ')}` : '';
+          out.push(commitRow(c, 'unknown\\-reference', `${tokens}${also}`, '', links));
         } else if (c.findings.includes('no-reference')) {
           const entry = lookup.noReference.get(commitKey(c.repo, c.sha));
-          out.push(commitRow(c, 'no\\-reference', '', noteSuffix(entry)));
+          out.push(commitRow(c, 'no\\-reference', '', noteSuffix(entry), links));
         } else if (linked.length > 0) {
-          out.push(commitRow(c, 'linked', `→ ${[...new Set(linked)].map((id) => mdEscape(id)).join(', ')}`, ''));
+          out.push(commitRow(c, 'linked', `→ ${[...new Set(linked)].map((id) => linkedItemId(id, itemUrls)).join(', ')}`, '', links));
         } else {
-          out.push(commitRow(c, 'linked', '', ''));
+          out.push(commitRow(c, 'linked', '', '', links));
         }
       }
       out.push('');
@@ -166,14 +213,12 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
 
   for (const item of verified.items) {
     const commitList = item.commits.length > 0
-      ? item.commits.map((c) => `\`${short(c.sha)}\` (${mdEscape(c.repo)})`).join(', ')
+      ? item.commits.map((c) => `${linkedSha(links, c.repo, c.sha)} (${mdEscape(c.repo)})`).join(', ')
       : '—';
     const finding = item.findings.includes('item-without-commits') ? 'item\\-without\\-commits' : '—';
     const itemNote = lookup.items.get(item.id);
     const triage = itemNote ? `${mdEscape(itemNote.classification)}: ${mdEscape(itemNote.note)}` : '—';
-    const raw = verified.changeset.items.find((ci) => ci.id === item.id)?.url;
-    const dest = safeItemUrl(raw);
-    const idCell = dest ? `[${mdEscape(item.id)}](${dest})` : mdEscape(item.id);
+    const idCell = linkedItemId(item.id, itemUrls);
 
     out.push(`| ${idCell} | ${mdEscape(item.title)} | ${mdEscape(item.type)} | ${mdEscape(item.status)} | ${commitList} | ${finding} | ${triage} |`);
   }
@@ -219,12 +264,12 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
         if (unresolved.length > 0) {
           for (const r of unresolved) {
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            out.push(`| \`${short(c.sha)}\` ${mdEscape(c.subject)} | ${mdEscape(r.token)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
+            out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
           }
         }
         if (c.findings.includes('no-reference')) {
           const entry = lookup.noReference.get(commitKey(c.repo, c.sha));
-          out.push(`| \`${short(c.sha)}\` ${mdEscape(c.subject)} | — | — | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
+          out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | — | — | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
         }
       }
       out.push('');

@@ -29,7 +29,8 @@
       "properties": {
         "id": { "type": "string" },
         "source": { "$ref": "https://shipledger.dev/schemas/changeset.schema.json#/properties/source" },
-        "items": { "$ref": "https://shipledger.dev/schemas/changeset.schema.json#/properties/items" }
+        "items": { "$ref": "https://shipledger.dev/schemas/changeset.schema.json#/properties/items" },
+        "links": { "$ref": "https://shipledger.dev/schemas/changeset.schema.json#/properties/links" }
       }
     },
     "ranges": {

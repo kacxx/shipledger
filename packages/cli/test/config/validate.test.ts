@@ -122,6 +122,63 @@ describe('validateNotes', () => {
   });
 });
 
+describe('validateChangeset links', () => {
+  it('accepts a changeset with links', () => {
+    const cs = {
+      ...changeset,
+      links: {
+        repos: {
+          'repo-a': {
+            commit: 'https://github.com/example/repo-a/commit/{sha}',
+            references: { 'ticket-key': 'https://tracker.example.com/browse/{token}' }
+          }
+        }
+      }
+    };
+    expect(validateChangeset(cs).links?.repos?.['repo-a']?.commit).toContain('{sha}');
+  });
+
+  it('accepts links with only commit template', () => {
+    const cs = { ...changeset, links: { repos: { 'repo-a': { commit: 'https://example.com/{sha}' } } } };
+    expect(() => validateChangeset(cs)).not.toThrow();
+  });
+
+  it('accepts links with only references', () => {
+    const cs = { ...changeset, links: { repos: { 'repo-a': { references: { 'tk': 'https://example.com/{token}' } } } } };
+    expect(() => validateChangeset(cs)).not.toThrow();
+  });
+
+  it('accepts empty repos object', () => {
+    const cs = { ...changeset, links: { repos: {} } };
+    expect(() => validateChangeset(cs)).not.toThrow();
+  });
+
+  it('accepts empty links object', () => {
+    const cs = { ...changeset, links: {} };
+    expect(() => validateChangeset(cs)).not.toThrow();
+  });
+
+  it('rejects unknown properties inside a repo link', () => {
+    const cs = { ...changeset, links: { repos: { 'repo-a': { commit: 'https://example.com/{sha}', extra: true } } } };
+    expect(() => validateChangeset(cs)).toThrow(CliError);
+  });
+
+  it('rejects unknown top-level properties inside links', () => {
+    const cs = { ...changeset, links: { repos: {}, extra: 'bad' } };
+    expect(() => validateChangeset(cs)).toThrow(CliError);
+  });
+
+  it('rejects empty commit template', () => {
+    const cs = { ...changeset, links: { repos: { 'repo-a': { commit: '' } } } };
+    expect(() => validateChangeset(cs)).toThrow(CliError);
+  });
+
+  it('rejects empty reference template', () => {
+    const cs = { ...changeset, links: { repos: { 'repo-a': { references: { 'tk': '' } } } } };
+    expect(() => validateChangeset(cs)).toThrow(CliError);
+  });
+});
+
 describe('the date-time format', () => {
   const withFetchedAt = (fetchedAt: string): unknown => ({
     ...changeset, source: { ...changeset.source, fetchedAt }
