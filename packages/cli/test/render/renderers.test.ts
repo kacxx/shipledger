@@ -668,6 +668,57 @@ describe('renderReport determinism with links', () => {
   });
 });
 
+describe('renderReport verification section', () => {
+  it('states re-verification was not performed when no context', () => {
+    const text = renderReport(verified);
+    expect(text).toMatch(/## Verification and provenance/);
+    expect(text).toContain('Repository re-verification was not performed.');
+  });
+
+  it('states verified when verification context is provided', () => {
+    const text = renderReport(verified, notes, { verified: true, movedRefs: [], fingerprintDiffers: false });
+    expect(text).toContain('Verified against the repositories');
+    expect(text).not.toContain('re-verification was not performed');
+  });
+
+  it('shows fingerprint note when config differs', () => {
+    const text = renderReport(verified, notes, { verified: true, movedRefs: [], fingerprintDiffers: true });
+    expect(text).toContain('fingerprints differently');
+  });
+
+  it('shows moved ref observations', () => {
+    const text = renderReport(verified, notes, {
+      verified: true, movedRefs: ['refs/tags/v1 moved from aaa to bbb', 'refs/tags/v2 moved from ccc to ddd'],
+      fingerprintDiffers: false
+    });
+    expect(text).toContain('Note: refs/tags/v1 moved from aaa to bbb');
+    expect(text).toContain('Note: refs/tags/v2 moved from ccc to ddd');
+  });
+
+  it('always includes the tracker-claim caveat', () => {
+    const withCtx = renderReport(verified, notes, { verified: true, movedRefs: [], fingerprintDiffers: false });
+    const without = renderReport(verified, notes);
+    for (const text of [withCtx, without]) {
+      expect(text).toContain('Tracker claims are taken on trust');
+    }
+  });
+
+  it('notes untriaged when no notes are supplied', () => {
+    const text = renderReport(verified);
+    expect(text).toContain('Findings are untriaged');
+  });
+
+  it('omits untriaged note when notes are supplied', () => {
+    const text = renderReport(verified, notes);
+    expect(text).not.toContain('Findings are untriaged');
+  });
+
+  it('is deterministic with verification context', () => {
+    const ctx = { verified: true as const, movedRefs: ['tag moved'], fingerprintDiffers: true };
+    expect(renderReport(verified, notes, ctx)).toBe(renderReport(verified, notes, ctx));
+  });
+});
+
 describe('renderChangelog', () => {
   it('lists linked items by title', () => {
     expect(renderChangelog(verified)).toMatch(/Add the thing/);

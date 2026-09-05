@@ -137,6 +137,9 @@ renders a change request. See `plugin/README.md`.
 Start from a preset (`tracker-keys` or `github-oss`) and override what you need.
 Full reference: `examples/` and `packages/cli/schemas/`.
 
+[Link templates](packages/cli/docs/links.md) turn commit SHAs and reference
+tokens in the report into clickable URLs pointing at your forge and tracker.
+
 ## Licence
 
 MIT.

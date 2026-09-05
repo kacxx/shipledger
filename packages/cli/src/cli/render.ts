@@ -8,7 +8,7 @@ import { assertVerifiedSemantics } from '../verify.js';
 import { assertVerifiedAgainstGit } from '../verify-git.js';
 import { assertNotesCoverFindings } from '../notes.js';
 import { CLI_VERSION } from './version.js';
-import { renderReport } from '../render/report.js';
+import { renderReport, type VerificationContext } from '../render/report.js';
 import { renderChangelog } from '../render/changelog.js';
 import { renderReleaseNotes } from '../render/release-notes.js';
 import type { NotesFile } from '../types.js';
@@ -56,18 +56,12 @@ export function runRender(argv: string[], cwd: string): number {
     const verified = validateVerified(readJson(resolve(cwd, values.input), 'verified changeset'));
     assertVerifiedSemantics(verified);
 
+    let verificationCtx: VerificationContext | undefined;
     if (values['verify-against-repos']) {
       const { config, configFingerprint } = loadConfig(resolve(cwd, values.config), CLI_VERSION);
       const { movedRefs, fingerprintDiffers } =
         assertVerifiedAgainstGit(verified, config, configFingerprint, CLI_VERSION);
-
-      // Notes go to stderr so the rendered artifact on stdout stays pipeable.
-      process.stderr.write('Verified against the repositories: every commit, its content, and every derived field match.\n');
-      if (fingerprintDiffers) {
-        process.stderr.write('Note: this config fingerprints differently, which differing repo paths alone will cause.\n');
-      }
-      for (const moved of movedRefs) process.stderr.write(`Note: ${moved}\n`);
-      process.stderr.write('The tracker claim embedded in the artifact is still taken on trust.\n');
+      verificationCtx = { verified: true, movedRefs, fingerprintDiffers };
     }
 
     let notes: NotesFile | undefined;
@@ -76,7 +70,11 @@ export function runRender(argv: string[], cwd: string): number {
       assertNotesCoverFindings(notes, verified);
     }
 
-    process.stdout.write(RENDERERS[format as keyof typeof RENDERERS](verified, notes));
+    if (format === 'report') {
+      process.stdout.write(renderReport(verified, notes, verificationCtx));
+    } else {
+      process.stdout.write(RENDERERS[format as 'changelog' | 'release-notes'](verified, notes));
+    }
     return 0;
   } catch (err) {
     const { code, message } = toExitCode(err);

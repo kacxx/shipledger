@@ -4,6 +4,12 @@ import type {
   ResolvedLinks, ResolvedReferenceLink, VerifiedChangeset
 } from '../types.js';
 
+export interface VerificationContext {
+  verified: true;
+  movedRefs: string[];
+  fingerprintDiffers: boolean;
+}
+
 const short = (sha: string): string => sha.slice(0, 8);
 
 function mdEscape(text: string): string {
@@ -127,7 +133,7 @@ function countFindings(verified: VerifiedChangeset): number {
   return count;
 }
 
-export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): string {
+export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, verification?: VerificationContext): string {
   const out: string[] = [];
   const s = verified.summary;
   const lookup = buildNoteLookup(notes ?? { version: 1 });
@@ -211,21 +217,22 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
           continue;
         }
 
-        const linked = c.references.flatMap((r) => r.resolvesTo);
-        const unresolved = c.references.filter((r) => r.resolvesTo.length === 0);
-
-        if (unresolved.length > 0) {
-          const tokens = unresolved.map((r) => {
+        if (c.references.length > 0) {
+          const refDetails = c.references.map((r) => {
+            const tokenPart = linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace);
+            const sourcesPart = r.sources.join(', ');
+            if (r.resolvesTo.length > 0) {
+              const items = [...new Set(r.resolvesTo)].map((id) => linkedItemId(id, itemUrls)).join(', ');
+              return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart}) → ${items}`;
+            }
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            return `${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)})${noteSuffix(entry)}`;
+            return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart})${noteSuffix(entry)}`;
           }).join('; ');
-          const also = linked.length > 0 ? ` · also → ${[...new Set(linked)].map((id) => linkedItemId(id, itemUrls)).join(', ')}` : '';
-          out.push(commitRow(c, 'unknown\\-reference', `${tokens}${also}`, '', links));
+          const status = c.findings.includes('unknown-reference') ? 'unknown\\-reference' : 'linked';
+          out.push(commitRow(c, status, refDetails, '', links));
         } else if (c.findings.includes('no-reference')) {
           const entry = lookup.noReference.get(commitKey(c.repo, c.sha));
           out.push(commitRow(c, 'no\\-reference', '', noteSuffix(entry), links));
-        } else if (linked.length > 0) {
-          out.push(commitRow(c, 'linked', `→ ${[...new Set(linked)].map((id) => linkedItemId(id, itemUrls)).join(', ')}`, '', links));
         } else {
           out.push(commitRow(c, 'linked', '', '', links));
         }
@@ -304,8 +311,17 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
     }
   }
 
-  out.push('---');
+  out.push('## Verification and provenance');
   out.push('');
+  if (verification) {
+    out.push('Verified against the repositories: every commit, its content, and every derived field match.');
+    if (verification.fingerprintDiffers) {
+      out.push('Note: this config fingerprints differently, which differing repo paths alone will cause.');
+    }
+    for (const moved of verification.movedRefs) out.push(`Note: ${moved}`);
+  } else {
+    out.push('Repository re-verification was not performed.');
+  }
   out.push('Engine verdict is based on policy and git evidence only. Tracker claims are taken on trust.');
   if (notes === undefined) {
     out.push('Findings are untriaged — no notes were supplied.');

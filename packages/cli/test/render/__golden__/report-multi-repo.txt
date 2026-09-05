@@ -32,9 +32,9 @@
 
 | Repo | SHA | Subject | Status | Detail |
 | --- | --- | --- | --- | --- |
-| backend | [`aa000001`](https://github.com/example/backend/commit/aa00000100000000000000000000000000000000) | PROJ-10 add \| pipe support \(\#50\) | linked | → [PROJ-10](https://tracker.example.com/PROJ-10) |
-| backend | [`aa000002`](https://github.com/example/backend/commit/aa00000200000000000000000000000000000000) | PROJ-11 fix \`backtick\` rendering | linked | → [PROJ-11](https://tracker.example.com/PROJ-11) |
-| backend | [`aa000003`](https://github.com/example/backend/commit/aa00000300000000000000000000000000000000) | PROJ-99 stray ref and OTHER-7 too | unknown\-reference | [PROJ-99](https://tracker.example.com/browse/PROJ-99) (ticket-key) other-release: belongs to 1.8; [OTHER-7](https://tracker.example.com/browse/OTHER-7) (ticket-key) other-release: different project |
+| backend | [`aa000001`](https://github.com/example/backend/commit/aa00000100000000000000000000000000000000) | PROJ-10 add \| pipe support \(\#50\) | linked | [PROJ-10](https://tracker.example.com/browse/PROJ-10) (ticket-key/subject) → [PROJ-10](https://tracker.example.com/PROJ-10); [\#50](https://github.com/example/backend/pull/50) (pr-ref/subject) → [PROJ-10](https://tracker.example.com/PROJ-10) |
+| backend | [`aa000002`](https://github.com/example/backend/commit/aa00000200000000000000000000000000000000) | PROJ-11 fix \`backtick\` rendering | linked | [PROJ-11](https://tracker.example.com/browse/PROJ-11) (ticket-key/subject) → [PROJ-11](https://tracker.example.com/PROJ-11) |
+| backend | [`aa000003`](https://github.com/example/backend/commit/aa00000300000000000000000000000000000000) | PROJ-99 stray ref and OTHER-7 too | unknown\-reference | [PROJ-99](https://tracker.example.com/browse/PROJ-99) (ticket-key/subject) other-release: belongs to 1.8; [OTHER-7](https://tracker.example.com/browse/OTHER-7) (ticket-key/subject) other-release: different project |
 | backend | [`aa000004`](https://github.com/example/backend/commit/aa00000400000000000000000000000000000000) | tidy up \<html\> \& stuff | no\-reference |  tooling-or-ci: html cleanup |
 | backend | [`aa000005`](https://github.com/example/backend/commit/aa00000500000000000000000000000000000000) | Merge branch 'main' | ignored | subjects:^Merge branch |
 
@@ -55,7 +55,7 @@
 
 | Repo | SHA | Subject | Status | Detail |
 | --- | --- | --- | --- | --- |
-| frontend | [`ff000001`](https://github.com/example/frontend/commit/ff00000100000000000000000000000000000000) | PROJ-11 fix rendering in UI | linked | → [PROJ-11](https://tracker.example.com/PROJ-11) |
+| frontend | [`ff000001`](https://github.com/example/frontend/commit/ff00000100000000000000000000000000000000) | PROJ-11 fix rendering in UI | linked | [PROJ-11](https://tracker.example.com/browse/PROJ-11) (ticket-key/subject) → [PROJ-11](https://tracker.example.com/PROJ-11) |
 | frontend | [`ff000002`](https://github.com/example/frontend/commit/ff00000200000000000000000000000000000000) | no ticket here | no\-reference |  process-miss: dev forgot ticket |
 
 ## Claimed Items
@@ -84,6 +84,7 @@
 | --- | --- | --- | --- | --- |
 | [`ff000002`](https://github.com/example/frontend/commit/ff00000200000000000000000000000000000000) no ticket here | — | — | process-miss | dev forgot ticket |
 
----
+## Verification and provenance
 
+Repository re-verification was not performed.
 Engine verdict is based on policy and git evidence only. Tracker claims are taken on trust.
