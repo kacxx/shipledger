@@ -80,6 +80,7 @@ function referenceUrl(
   if (entry.stripSuffix && value.endsWith(entry.stripSuffix)) {
     value = value.slice(0, -entry.stripSuffix.length);
   }
+  if (value === '') return null;
   return expandTemplate(entry.url, { token: value });
 }
 

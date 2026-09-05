@@ -702,6 +702,60 @@ describe('renderReport stripPrefix', () => {
     expect(text).toContain('%2399');
     expect(text).not.toContain('pull/99');
   });
+
+  it('returns plain text when stripPrefix consumes the entire token', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}', stripPrefix: '#99' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '#99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).not.toContain('[\\#99](');
+    expect(text).toContain('\\#99');
+  });
+
+  it('returns plain text when combined prefix and suffix produce an empty token', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}', stripPrefix: '[', stripSuffix: ']' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '[]', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).not.toContain('[\\[\\]](');
+    expect(text).toContain('\\[\\]');
+  });
 });
 
 describe('renderReport global references across repos', () => {

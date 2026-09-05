@@ -277,4 +277,39 @@ describe('render --verify-against-repos', () => {
     // No --config given and none on disk: without the flag that must not matter.
     expect(runRender(['report', '--input', outPath], work as string)).toBe(0);
   });
+
+  for (const fmt of ['changelog', 'release-notes'] as const) {
+    it(`emits verification confirmation to stderr for ${fmt}`, () => {
+      const writes: string[] = [];
+      vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+        writes.push(String(chunk));
+        return true;
+      });
+      vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      expect(runRender(
+        [fmt, '--input', outPath, '--config', configPath, '--verify-against-repos'],
+        work as string
+      )).toBe(0);
+      const stderr = writes.join('');
+      expect(stderr).toContain('Verified against the repositories');
+      expect(stderr).toContain('Tracker claims are taken on trust');
+    });
+  }
+
+  it('emits moved-ref note to stderr for changelog with verify', () => {
+    repo!.commit('feat: five (#5)');
+    const writes: string[] = [];
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      writes.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    expect(runRender(
+      ['changelog', '--input', outPath, '--config', configPath, '--verify-against-repos'],
+      work as string
+    )).toBe(0);
+    const stderr = writes.join('');
+    expect(stderr).toContain('Note:');
+    expect(stderr).toContain('now points at');
+  });
 });
