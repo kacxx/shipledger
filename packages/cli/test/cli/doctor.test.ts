@@ -239,6 +239,33 @@ describe('runDoctor', () => {
     expect(out.text()).not.toMatch(/INFO/);
     expect(out.text()).not.toMatch(/outside\.txt/);
   });
+
+  it('shows normalized links in effective config marked as adopter', () => {
+    repo = healthyRepo();
+    work = mkdtempSync(join(tmpdir(), 'shipledger-doc-'));
+    writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: repo.path }],
+      links: {
+        references: { 'ticket-key': 'https://tracker.example.com/browse/{token}' },
+        repos: { 'repo-a': { commit: 'https://github.com/example/repo-a/commit/{sha}' } }
+      }
+    }));
+    const out = capture();
+    runDoctor(['--config', join(work, 'config.json')], process.cwd());
+    const text = out.text();
+    expect(text).toMatch(/links\s+\[adopter\]:/);
+    expect(text).toMatch(/tracker\.example\.com/);
+    expect(text).toMatch(/\{token\}/);
+    expect(text).toMatch(/\{sha\}/);
+  });
+
+  it('omits links line from effective config when no links configured', () => {
+    repo = healthyRepo();
+    const out = capture();
+    runDoctor(setup(repo.path), process.cwd());
+    expect(out.text()).not.toMatch(/links\s+\[adopter\]/);
+  });
 });
 
 import { checkCliRange } from '../../src/cli/doctor.js';

@@ -65,6 +65,10 @@ function validateTemplateUrl(template: string, placeholder: string, label: strin
   if (unknowns.length > 0) {
     throw usageError(`${label} contains unknown placeholder(s): ${unknowns.map((u) => `{${u}}`).join(', ')}.`);
   }
+  const stripped = template.replace(/\{\w+\}/g, '');
+  if (/[{}]/.test(stripped)) {
+    throw usageError(`${label} contains a malformed brace expression.`);
+  }
   const dummy = template.replaceAll(`{${placeholder}}`, 'DUMMY_VALUE');
   // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f\x7f]/.test(dummy)) {

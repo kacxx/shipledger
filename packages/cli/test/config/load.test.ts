@@ -185,4 +185,14 @@ describe('assertLinksAgainstConfig', () => {
     });
     expect(() => assertLinksAgainstConfig(c.links!, c)).toThrow(/regex/);
   });
+
+  it('rejects malformed brace expression in commit template', () => {
+    const c = withLinks({ repos: { 'repo-a': { commit: 'https://example.com/{sha}/{sha-1}' } } });
+    expect(() => assertLinksAgainstConfig(c.links!, c)).toThrow(/malformed brace/);
+  });
+
+  it('rejects bare braces in reference template', () => {
+    const c = withLinks({ references: { 'ticket-key': 'https://example.com/{token}/{}' } });
+    expect(() => assertLinksAgainstConfig(c.links!, c)).toThrow(/malformed brace/);
+  });
 });

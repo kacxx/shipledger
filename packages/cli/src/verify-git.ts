@@ -149,5 +149,12 @@ export function assertVerifiedAgainstGit(
     );
   }
 
+  if (canonicalStringify(verified.links) !== canonicalStringify(config.links)) {
+    throw usageError(
+      'Artifact link metadata does not match the config. ' +
+      'A changed link destination or tokenReplace cannot pass verification.'
+    );
+  }
+
   return { movedRefs, fingerprintDiffers: verified.configFingerprint !== configFingerprint };
 }

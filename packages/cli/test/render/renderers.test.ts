@@ -479,7 +479,7 @@ describe('renderReport malformed templates', () => {
       links: { repos: { backend: { commit: 'https://example.com/commits' } } }
     };
     const text = renderReport(v);
-    expect(text).toMatch(/\[`aa000001`\]\(https:\/\/example\.com\/commits\)/);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
   });
 
   it('falls back to plain text when template is not a valid URL', () => {
@@ -495,6 +495,52 @@ describe('renderReport malformed templates', () => {
     const v: VerifiedChangeset = {
       ...multiRepo,
       links: { repos: { backend: { commit: 'https://example.com/{unknown}' } } }
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('falls back to plain text when reference template is static', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { references: { 'ticket-key': { url: 'https://example.com/issues' } } },
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? { ...c, references: [{ matcher: 'ticket-key', token: 'PROJ-99', namespace: 'global' as const, sources: ['subject' as const], resolvesTo: [] }] }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[PROJ\\-99\]\(/);
+  });
+
+  it('falls back to plain text when tokenReplace regex is invalid', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { references: { 'pr-ref': { url: 'https://example.com/pull/{token}', tokenReplace: ['(invalid', ''] } } } } },
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? { ...c, references: [{ matcher: 'pr-ref', token: '#99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }] }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[\\#99\]\(/);
+  });
+
+  it('falls back to plain text when template has malformed braces', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { commit: 'https://example.com/{sha}/{sha-1}' } } }
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('falls back when template has bare braces', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { commit: 'https://example.com/{sha}/{}' } } }
     };
     const text = renderReport(v);
     expect(text).not.toMatch(/\[`aa000001`\]\(/);

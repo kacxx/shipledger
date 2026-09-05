@@ -209,6 +209,49 @@ describe('assertVerifiedAgainstGit', () => {
     // Same repo, different spelling: the fingerprint moves, the artifact does not.
     expect(result.fingerprintDiffers).toBe(true);
   });
+
+  it('catches a tampered link destination in the artifact', () => {
+    writeFileSync(configPath, JSON.stringify({
+      version: 1, preset: 'github-oss@1', repos: [{ name: 'r', path: repo!.path }],
+      links: { repos: { r: { commit: 'https://github.com/example/r/commit/{sha}' } } }
+    }));
+    silence();
+    runCheck(
+      ['--config', configPath, '--changeset', join(work as string, 'changeset.json'), '--out', outPath],
+      work as string
+    );
+    const tampered = artifact();
+    tampered.links!.repos!['r']!.commit = 'https://evil.example.com/{sha}';
+    expect(() => verify(tampered)).toThrow(/link metadata does not match/);
+  });
+
+  it('catches a tampered tokenReplace in the artifact', () => {
+    writeFileSync(configPath, JSON.stringify({
+      version: 1, preset: 'github-oss@1', repos: [{ name: 'r', path: repo!.path }],
+      links: { repos: { r: { commit: 'https://github.com/example/r/commit/{sha}', references: { 'pr-ref': { url: 'https://github.com/example/r/pull/{token}', tokenReplace: ['^#', ''] } } } } }
+    }));
+    silence();
+    runCheck(
+      ['--config', configPath, '--changeset', join(work as string, 'changeset.json'), '--out', outPath],
+      work as string
+    );
+    const tampered = artifact();
+    tampered.links!.repos!['r']!.references!['pr-ref']!.tokenReplace = ['.*', 'hijacked'];
+    expect(() => verify(tampered)).toThrow(/link metadata does not match/);
+  });
+
+  it('accepts an artifact with links that match the config', () => {
+    writeFileSync(configPath, JSON.stringify({
+      version: 1, preset: 'github-oss@1', repos: [{ name: 'r', path: repo!.path }],
+      links: { repos: { r: { commit: 'https://github.com/example/r/commit/{sha}' } } }
+    }));
+    silence();
+    runCheck(
+      ['--config', configPath, '--changeset', join(work as string, 'changeset.json'), '--out', outPath],
+      work as string
+    );
+    expect(() => verify(artifact())).not.toThrow();
+  });
 });
 
 describe('render --verify-against-repos', () => {

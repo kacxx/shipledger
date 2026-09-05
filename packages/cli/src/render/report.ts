@@ -34,13 +34,17 @@ function safeUrl(raw: string): string | null {
 }
 
 function expandTemplate(template: string, vars: Record<string, string>): string | null {
+  let substitutions = 0;
   let hasUnresolved = false;
   const expanded = template.replace(/\{(\w+)\}/g, (match, key: string) => {
     const val = vars[key];
     if (val === undefined) { hasUnresolved = true; return match; }
+    substitutions++;
     return encodeURIComponent(val);
   });
   if (hasUnresolved) return null;
+  if (substitutions === 0) return null;
+  if (/[{}]/.test(expanded)) return null;
   return safeUrl(expanded);
 }
 
@@ -65,7 +69,11 @@ function referenceUrl(
   if (!entry) return null;
   let value = token;
   if (entry.tokenReplace) {
-    value = value.replace(new RegExp(entry.tokenReplace[0]), entry.tokenReplace[1]);
+    try {
+      value = value.replace(new RegExp(entry.tokenReplace[0]), entry.tokenReplace[1]);
+    } catch {
+      return null;
+    }
   }
   return expandTemplate(entry.url, { token: value });
 }
