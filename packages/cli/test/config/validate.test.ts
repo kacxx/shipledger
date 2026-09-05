@@ -122,6 +122,68 @@ describe('validateNotes', () => {
   });
 });
 
+describe('validateChangeset rejects links (now config-only)', () => {
+  it('rejects a changeset with links since they moved to config', () => {
+    const cs = { ...changeset, links: { repos: { 'repo-a': { commit: 'https://example.com/{sha}' } } } };
+    expect(() => validateChangeset(cs)).toThrow(CliError);
+  });
+});
+
+describe('validateConfig links', () => {
+  it('accepts a config with links', () => {
+    const c = {
+      ...config,
+      links: {
+        references: { 'ticket-key': 'https://tracker.example.com/browse/{token}' },
+        repos: { 'repo-a': { commit: 'https://example.com/{sha}' } }
+      }
+    };
+    expect(validateConfig(c).links).toBeDefined();
+  });
+
+  it('accepts links with string reference shorthand', () => {
+    const c = { ...config, links: { references: { 'tk': 'https://example.com/{token}' } } };
+    expect(() => validateConfig(c)).not.toThrow();
+  });
+
+  it('accepts links with object reference form and stripPrefix', () => {
+    const c = {
+      ...config,
+      links: {
+        repos: { 'repo-a': { references: { 'pr': { url: 'https://example.com/{token}', stripPrefix: '#' } } } }
+      }
+    };
+    expect(() => validateConfig(c)).not.toThrow();
+  });
+
+  it('accepts empty links object', () => {
+    expect(() => validateConfig({ ...config, links: {} })).not.toThrow();
+  });
+
+  it('accepts empty repos inside links', () => {
+    expect(() => validateConfig({ ...config, links: { repos: {} } })).not.toThrow();
+  });
+
+  it('rejects unknown top-level properties inside links', () => {
+    expect(() => validateConfig({ ...config, links: { extra: 'bad' } })).toThrow(CliError);
+  });
+
+  it('rejects unknown properties inside a repo link', () => {
+    const c = { ...config, links: { repos: { 'repo-a': { commit: 'https://example.com/{sha}', extra: true } } } };
+    expect(() => validateConfig(c)).toThrow(CliError);
+  });
+
+  it('rejects empty commit template', () => {
+    const c = { ...config, links: { repos: { 'repo-a': { commit: '' } } } };
+    expect(() => validateConfig(c)).toThrow(CliError);
+  });
+
+  it('rejects empty reference template string', () => {
+    const c = { ...config, links: { references: { 'tk': '' } } };
+    expect(() => validateConfig(c)).toThrow(CliError);
+  });
+});
+
 describe('the date-time format', () => {
   const withFetchedAt = (fetchedAt: string): unknown => ({
     ...changeset, source: { ...changeset.source, fetchedAt }

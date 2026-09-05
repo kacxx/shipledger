@@ -15,7 +15,7 @@ import type {
  * verifies the same artifact from their own checkout. Everything else must
  * reproduce exactly.
  */
-const NOT_COMPARED = new Set(['generatedAt', 'configFingerprint']);
+const NOT_COMPARED = new Set(['generatedAt', 'configFingerprint', 'links']);
 
 const comparable = (v: VerifiedChangeset): string =>
   canonicalStringify(Object.fromEntries(Object.entries(v).filter(([k]) => !NOT_COMPARED.has(k))));
@@ -146,6 +146,13 @@ export function assertVerifiedAgainstGit(
     const problems = describeDifference(verified, recomputed);
     throw usageError(
       `Artifact does not match the repositories:\n${problems.map((p) => `  ${p}`).join('\n')}`
+    );
+  }
+
+  if (canonicalStringify(verified.links) !== canonicalStringify(config.links)) {
+    throw usageError(
+      'Artifact link metadata does not match the config. ' +
+      'A changed link destination or strip rule cannot pass verification.'
     );
   }
 

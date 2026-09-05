@@ -32,6 +32,48 @@
         "items": { "$ref": "https://shipledger.dev/schemas/changeset.schema.json#/properties/items" }
       }
     },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "references": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["url"],
+            "properties": {
+              "url": { "type": "string", "minLength": 1 },
+              "stripPrefix": { "type": "string", "minLength": 1 },
+              "stripSuffix": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "repos": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "commit": { "type": "string", "minLength": 1 },
+              "references": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["url"],
+                  "properties": {
+                    "url": { "type": "string", "minLength": 1 },
+                    "stripPrefix": { "type": "string", "minLength": 1 },
+                    "stripSuffix": { "type": "string", "minLength": 1 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "ranges": {
       "type": "array",
       "items": {

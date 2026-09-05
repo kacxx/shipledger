@@ -32,8 +32,8 @@
 
 | Repo | SHA | Subject | Status | Detail |
 | --- | --- | --- | --- | --- |
-| repo-a | `aaaaaaaa` | PROJ-1 add thing | linked | → PROJ-1 |
-| repo-a | `bbbbbbbb` | PROJ-1 and PROJ-9 together | unknown\-reference | PROJ-9 (ticket-key) · also → PROJ-1 |
+| repo-a | `aaaaaaaa` | PROJ-1 add thing | linked | PROJ-1 (ticket-key/subject) → PROJ-1 |
+| repo-a | `bbbbbbbb` | PROJ-1 and PROJ-9 together | unknown\-reference | PROJ-1 (ticket-key/subject) → PROJ-1; PROJ-9 (ticket-key/subject) |
 | repo-a | `cccccccc` | tidy up | no\-reference |  |
 | repo-a | `dddddddd` | Merge branch main | ignored | subjects:^Merge branch |
 
@@ -55,7 +55,8 @@
 | `bbbbbbbb` PROJ-1 and PROJ-9 together | PROJ-9 (ticket-key) | subject | — | — |
 | `cccccccc` tidy up | — | — | — | — |
 
----
+## Verification and provenance
 
+Repository re-verification was not performed.
 Engine verdict is based on policy and git evidence only. Tracker claims are taken on trust.
 Findings are untriaged — no notes were supplied.

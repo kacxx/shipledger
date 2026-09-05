@@ -33,6 +33,7 @@ export interface RawConfig {
   history?: HistoryMode;
   ignore?: IgnoreConfig;
   policy?: PolicyConfig;
+  links?: RawLinks;
 }
 
 export interface ResolvedConfig {
@@ -45,6 +46,7 @@ export interface ResolvedConfig {
   history: HistoryMode;
   ignore: IgnoreConfig;
   policy: PolicyConfig;
+  links?: ResolvedLinks;
 }
 
 export interface ItemToken { matcher: string; token: string; repo?: string }
@@ -68,6 +70,34 @@ export interface Changeset {
   source: ChangesetSource;
   items: ChangesetItem[];
   ranges: RangeSpec[];
+}
+
+export type RawReferenceTemplate = string | { url: string; stripPrefix?: string; stripSuffix?: string };
+
+export interface RawRepoLinks {
+  commit?: string;
+  references?: Record<string, RawReferenceTemplate>;
+}
+
+export interface RawLinks {
+  references?: Record<string, RawReferenceTemplate>;
+  repos?: Record<string, RawRepoLinks>;
+}
+
+export interface ResolvedReferenceLink {
+  url: string;
+  stripPrefix?: string;
+  stripSuffix?: string;
+}
+
+export interface ResolvedRepoLinks {
+  commit?: string;
+  references?: Record<string, ResolvedReferenceLink>;
+}
+
+export interface ResolvedLinks {
+  references?: Record<string, ResolvedReferenceLink>;
+  repos?: Record<string, ResolvedRepoLinks>;
 }
 
 export interface CommitRecord {
@@ -146,6 +176,7 @@ export interface VerifiedChangeset {
   configFingerprint: string;
   policy: PolicyConfig;
   changeset: { id: string; source: ChangesetSource; items: ChangesetItem[] };
+  links?: ResolvedLinks;
   ranges: RangeResult[];
   commits: CommitResult[];
   items: ItemResult[];

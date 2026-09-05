@@ -75,6 +75,7 @@ export function reconcile(input: ReconcileInput): VerifiedChangeset {
     configFingerprint: input.configFingerprint,
     policy: config.policy,
     changeset: { id: changeset.id, source: changeset.source, items: changeset.items },
+    ...(config.links ? { links: config.links } : {}),
     ranges,
     commits,
     items,

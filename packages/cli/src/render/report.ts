@@ -1,5 +1,14 @@
 import { buildNoteLookup, commitKey, referenceKey } from '../notes.js';
-import type { CommitResult, NotesFile, RangeResult, VerifiedChangeset } from '../types.js';
+import type {
+  CommitResult, Namespace, NotesFile, RangeResult,
+  ResolvedLinks, ResolvedReferenceLink, VerifiedChangeset
+} from '../types.js';
+
+export interface VerificationContext {
+  verified: true;
+  movedRefs: string[];
+  fingerprintDiffers: boolean;
+}
 
 const short = (sha: string): string => sha.slice(0, 8);
 
@@ -16,8 +25,7 @@ function codeSpan(text: string): string {
   return `${fence} ${safe} ${fence}`;
 }
 
-function safeItemUrl(raw: string | undefined): string | null {
-  if (raw === undefined) return null;
+function safeUrl(raw: string): string | null {
   // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f\x7f]/.test(raw)) return null;
   let url: URL;
@@ -31,6 +39,69 @@ function safeItemUrl(raw: string | undefined): string | null {
   return url.href.replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
+function expandTemplate(template: string, vars: Record<string, string>): string | null {
+  let substitutions = 0;
+  let hasUnresolved = false;
+  const expanded = template.replace(/\{(\w+)\}/g, (match, key: string) => {
+    const val = vars[key];
+    if (val === undefined) { hasUnresolved = true; return match; }
+    substitutions++;
+    return encodeURIComponent(val);
+  });
+  if (hasUnresolved) return null;
+  if (substitutions === 0) return null;
+  if (/[{}]/.test(expanded)) return null;
+  return safeUrl(expanded);
+}
+
+function commitUrl(links: ResolvedLinks | undefined, repo: string, sha: string): string | null {
+  const tpl = links?.repos?.[repo]?.commit;
+  if (!tpl) return null;
+  return expandTemplate(tpl, { sha });
+}
+
+function resolveRefEntry(
+  links: ResolvedLinks | undefined, repo: string, matcher: string, namespace: Namespace
+): ResolvedReferenceLink | undefined {
+  if (namespace === 'global') return links?.references?.[matcher];
+  return links?.repos?.[repo]?.references?.[matcher];
+}
+
+function referenceUrl(
+  links: ResolvedLinks | undefined, repo: string,
+  matcher: string, token: string, namespace: Namespace
+): string | null {
+  const entry = resolveRefEntry(links, repo, matcher, namespace);
+  if (!entry) return null;
+  let value = token;
+  if (entry.stripPrefix && value.startsWith(entry.stripPrefix)) {
+    value = value.slice(entry.stripPrefix.length);
+  }
+  if (entry.stripSuffix && value.endsWith(entry.stripSuffix)) {
+    value = value.slice(0, -entry.stripSuffix.length);
+  }
+  if (value === '') return null;
+  return expandTemplate(entry.url, { token: value });
+}
+
+function linkedSha(links: ResolvedLinks | undefined, repo: string, sha: string): string {
+  const dest = commitUrl(links, repo, sha);
+  return dest ? `[\`${short(sha)}\`](${dest})` : `\`${short(sha)}\``;
+}
+
+function linkedItemId(id: string, itemUrls: Map<string, string>): string {
+  const dest = itemUrls.get(id);
+  return dest ? `[${mdEscape(id)}](${dest})` : mdEscape(id);
+}
+
+function linkedRefToken(
+  links: ResolvedLinks | undefined, repo: string,
+  matcher: string, token: string, namespace: Namespace
+): string {
+  const dest = referenceUrl(links, repo, matcher, token, namespace);
+  return dest ? `[${mdEscape(token)}](${dest})` : mdEscape(token);
+}
+
 function noteSuffix(entry: { classification: string; note: string } | undefined): string {
   return entry ? ` ${mdEscape(entry.classification)}: ${mdEscape(entry.note)}` : '';
 }
@@ -39,9 +110,10 @@ function commitRow(
   c: CommitResult,
   status: string,
   detail: string,
-  noteSuffix: string
+  noteSuffix: string,
+  links: ResolvedLinks | undefined
 ): string {
-  return `| ${mdEscape(c.repo)} | \`${short(c.sha)}\` | ${mdEscape(c.subject)} | ${status} | ${detail}${noteSuffix} |`;
+  return `| ${mdEscape(c.repo)} | ${linkedSha(links, c.repo, c.sha)} | ${mdEscape(c.subject)} | ${status} | ${detail}${noteSuffix} |`;
 }
 
 function countFindings(verified: VerifiedChangeset): number {
@@ -61,10 +133,19 @@ function countFindings(verified: VerifiedChangeset): number {
   return count;
 }
 
-export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): string {
+export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, verification?: VerificationContext): string {
   const out: string[] = [];
   const s = verified.summary;
   const lookup = buildNoteLookup(notes ?? { version: 1 });
+  const links = verified.links;
+
+  const itemUrls = new Map<string, string>();
+  for (const ci of verified.changeset.items) {
+    if (ci.url !== undefined) {
+      const dest = safeUrl(ci.url);
+      if (dest) itemUrls.set(ci.id, dest);
+    }
+  }
 
   out.push(`# Reconciliation Report — ${mdEscape(verified.changeset.id)}`);
   out.push('');
@@ -132,27 +213,28 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
 
       for (const c of repoCommits) {
         if (c.ignored) {
-          out.push(commitRow(c, 'ignored', mdEscape(c.ignored.rule), ''));
+          out.push(commitRow(c, 'ignored', mdEscape(c.ignored.rule), '', links));
           continue;
         }
 
-        const linked = c.references.flatMap((r) => r.resolvesTo);
-        const unresolved = c.references.filter((r) => r.resolvesTo.length === 0);
-
-        if (unresolved.length > 0) {
-          const tokens = unresolved.map((r) => {
+        if (c.references.length > 0) {
+          const refDetails = c.references.map((r) => {
+            const tokenPart = linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace);
+            const sourcesPart = r.sources.join(', ');
+            if (r.resolvesTo.length > 0) {
+              const items = [...new Set(r.resolvesTo)].map((id) => linkedItemId(id, itemUrls)).join(', ');
+              return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart}) → ${items}`;
+            }
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            return `${mdEscape(r.token)} (${mdEscape(r.matcher)})${noteSuffix(entry)}`;
+            return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart})${noteSuffix(entry)}`;
           }).join('; ');
-          const also = linked.length > 0 ? ` · also → ${[...new Set(linked)].map((id) => mdEscape(id)).join(', ')}` : '';
-          out.push(commitRow(c, 'unknown\\-reference', `${tokens}${also}`, ''));
+          const status = c.findings.includes('unknown-reference') ? 'unknown\\-reference' : 'linked';
+          out.push(commitRow(c, status, refDetails, '', links));
         } else if (c.findings.includes('no-reference')) {
           const entry = lookup.noReference.get(commitKey(c.repo, c.sha));
-          out.push(commitRow(c, 'no\\-reference', '', noteSuffix(entry)));
-        } else if (linked.length > 0) {
-          out.push(commitRow(c, 'linked', `→ ${[...new Set(linked)].map((id) => mdEscape(id)).join(', ')}`, ''));
+          out.push(commitRow(c, 'no\\-reference', '', noteSuffix(entry), links));
         } else {
-          out.push(commitRow(c, 'linked', '', ''));
+          out.push(commitRow(c, 'linked', '', '', links));
         }
       }
       out.push('');
@@ -166,14 +248,12 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
 
   for (const item of verified.items) {
     const commitList = item.commits.length > 0
-      ? item.commits.map((c) => `\`${short(c.sha)}\` (${mdEscape(c.repo)})`).join(', ')
+      ? item.commits.map((c) => `${linkedSha(links, c.repo, c.sha)} (${mdEscape(c.repo)})`).join(', ')
       : '—';
     const finding = item.findings.includes('item-without-commits') ? 'item\\-without\\-commits' : '—';
     const itemNote = lookup.items.get(item.id);
     const triage = itemNote ? `${mdEscape(itemNote.classification)}: ${mdEscape(itemNote.note)}` : '—';
-    const raw = verified.changeset.items.find((ci) => ci.id === item.id)?.url;
-    const dest = safeItemUrl(raw);
-    const idCell = dest ? `[${mdEscape(item.id)}](${dest})` : mdEscape(item.id);
+    const idCell = linkedItemId(item.id, itemUrls);
 
     out.push(`| ${idCell} | ${mdEscape(item.title)} | ${mdEscape(item.type)} | ${mdEscape(item.status)} | ${commitList} | ${finding} | ${triage} |`);
   }
@@ -219,20 +299,29 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
         if (unresolved.length > 0) {
           for (const r of unresolved) {
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            out.push(`| \`${short(c.sha)}\` ${mdEscape(c.subject)} | ${mdEscape(r.token)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
+            out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
           }
         }
         if (c.findings.includes('no-reference')) {
           const entry = lookup.noReference.get(commitKey(c.repo, c.sha));
-          out.push(`| \`${short(c.sha)}\` ${mdEscape(c.subject)} | — | — | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
+          out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | — | — | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
         }
       }
       out.push('');
     }
   }
 
-  out.push('---');
+  out.push('## Verification and provenance');
   out.push('');
+  if (verification) {
+    out.push('Verified against the repositories: every commit, its content, and every derived field match.');
+    if (verification.fingerprintDiffers) {
+      out.push('Note: this config fingerprints differently, which differing repo paths alone will cause.');
+    }
+    for (const moved of verification.movedRefs) out.push(`Note: ${mdEscape(moved)}`);
+  } else {
+    out.push('Repository re-verification was not performed.');
+  }
   out.push('Engine verdict is based on policy and git evidence only. Tracker claims are taken on trust.');
   if (notes === undefined) {
     out.push('Findings are untriaged — no notes were supplied.');

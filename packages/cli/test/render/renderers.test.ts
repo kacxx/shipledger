@@ -6,7 +6,7 @@ import { renderReport } from '../../src/render/report.js';
 import { renderChangelog } from '../../src/render/changelog.js';
 import { renderReleaseNotes } from '../../src/render/release-notes.js';
 import { validateVerified } from '../../src/config/validate.js';
-import type { NotesFile, VerifiedChangeset } from '../../src/types.js';
+import type { NotesFile, ResolvedLinks, VerifiedChangeset } from '../../src/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const verified = validateVerified(
@@ -359,6 +359,488 @@ describe('renderReport multi-repo', () => {
   });
   it('is deterministic', () => {
     expect(renderReport(multiRepo, multiRepoNotes)).toBe(renderReport(multiRepo, multiRepoNotes));
+  });
+});
+
+describe('renderReport configured links', () => {
+  const text = renderReport(multiRepo, multiRepoNotes);
+
+  it('links commit SHAs when commit template exists', () => {
+    expect(text).toMatch(/\[`aa000001`\]\(https:\/\/github\.com\/example\/backend\/commit\/aa00000100000000000000000000000000000000\)/);
+  });
+
+  it('links commit SHAs for the frontend repo with its own template', () => {
+    expect(text).toMatch(/\[`ff000001`\]\(https:\/\/github\.com\/example\/frontend\/commit\/ff00000100000000000000000000000000000000\)/);
+  });
+
+  it('links unresolved reference tokens via global reference template', () => {
+    expect(text).toMatch(/\[PROJ-99\]\(https:\/\/tracker\.example\.com\/browse\/PROJ-99\)/);
+  });
+
+  it('links OTHER-7 reference token via global template', () => {
+    expect(text).toMatch(/\[OTHER-7\]\(https:\/\/tracker\.example\.com\/browse\/OTHER-7\)/);
+  });
+
+  it('links commit SHAs in items table', () => {
+    expect(text).toMatch(/\[`aa000001`\]\(https:\/\/github\.com\/example\/backend\/commit\/aa00000100000000000000000000000000000000\) \(backend\)/);
+  });
+
+  it('links commit SHAs in the unresolved table', () => {
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/\[`aa000003`\]\(https:\/\/github\.com\/example\/backend\/commit\/aa00000300000000000000000000000000000000\)/);
+  });
+
+  it('links reference tokens in the unresolved table', () => {
+    const unresolvedSection = text.slice(text.indexOf('## Unresolved'));
+    expect(unresolvedSection).toMatch(/\[PROJ-99\]\(https:\/\/tracker\.example\.com\/browse\/PROJ-99\) \(ticket-key\)/);
+  });
+
+  it('still links item IDs from changeset item URLs', () => {
+    expect(text).toMatch(/\[PROJ-10\]\(https:\/\/tracker\.example\.com\/PROJ-10\)/);
+  });
+});
+
+describe('renderReport missing link metadata', () => {
+  it('renders plain SHAs when links is absent', () => {
+    const text = renderReport(verified);
+    expect(text).toMatch(/`bbbbbbbb`/);
+    expect(text).not.toMatch(/\[`bbbbbbbb`\]\(/);
+  });
+
+  it('renders plain SHAs when repo is missing from links', () => {
+    const partial: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { 'other-repo': { commit: 'https://example.com/{sha}' } } }
+    };
+    const text = renderReport(partial);
+    expect(text).toMatch(/`aa000001`/);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('renders plain SHAs when commit template is missing', () => {
+    const partial: VerifiedChangeset = {
+      ...multiRepo,
+      links: { references: { 'ticket-key': { url: 'https://tracker.example.com/{token}' } } }
+    };
+    const text = renderReport(partial);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('renders plain reference tokens when reference template is missing', () => {
+    const partial: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { commit: 'https://example.com/{sha}' } } }
+    };
+    const text = renderReport(partial);
+    expect(text).toContain('PROJ-99');
+    expect(text).not.toMatch(/\[PROJ-99\]\(/);
+  });
+});
+
+describe('renderReport unsafe protocol templates', () => {
+  function withCommitTemplate(template: string): VerifiedChangeset {
+    return { ...multiRepo, links: { repos: { backend: { commit: template } } } };
+  }
+
+  function withRefTemplate(template: string): VerifiedChangeset {
+    return { ...multiRepo, links: { references: { 'ticket-key': { url: template } } } };
+  }
+
+  it('rejects javascript: commit template', () => {
+    const text = renderReport(withCommitTemplate('javascript:alert({sha})'));
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('rejects data: commit template', () => {
+    const text = renderReport(withCommitTemplate('data:text/html,{sha}'));
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('rejects ftp: commit template', () => {
+    const text = renderReport(withCommitTemplate('ftp://example.com/{sha}'));
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('rejects javascript: reference template', () => {
+    const text = renderReport(withRefTemplate('javascript:alert({token})'));
+    expect(text).not.toMatch(/\[PROJ-99\]\(/);
+  });
+
+  it('rejects credential-bearing commit template', () => {
+    const text = renderReport(withCommitTemplate('https://user:pass@example.com/{sha}'));
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+});
+
+describe('renderReport malformed templates', () => {
+  it('falls back to plain text when template has no placeholder', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { commit: 'https://example.com/commits' } } }
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('falls back to plain text when template is not a valid URL', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { commit: 'not a url {sha}' } } }
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('falls back when template has unknown placeholder', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { commit: 'https://example.com/{unknown}' } } }
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('falls back to plain text when reference template is static', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { references: { 'ticket-key': { url: 'https://example.com/issues' } } },
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? { ...c, references: [{ matcher: 'ticket-key', token: 'PROJ-99', namespace: 'global' as const, sources: ['subject' as const], resolvesTo: [] }] }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[PROJ\\-99\]\(/);
+  });
+
+  it('strips prefix only when token starts with the literal', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { references: { 'pr-ref': { url: 'https://example.com/pull/{token}', stripPrefix: '#' } } } } },
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? { ...c, references: [{ matcher: 'pr-ref', token: '99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }] }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://example.com/pull/99');
+  });
+
+  it('falls back to plain text when template has malformed braces', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { commit: 'https://example.com/{sha}/{sha-1}' } } }
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+
+  it('falls back when template has bare braces', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { repos: { backend: { commit: 'https://example.com/{sha}/{}' } } }
+    };
+    const text = renderReport(v);
+    expect(text).not.toMatch(/\[`aa000001`\]\(/);
+  });
+});
+
+describe('renderReport special characters in tokens', () => {
+  it('URL-encodes tokens with spaces', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { references: { 'ticket-key': { url: 'https://tracker.example.com/browse/{token}' } } },
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? { ...c, references: [{ matcher: 'ticket-key', token: 'PROJ 99', namespace: 'global' as const, sources: ['subject' as const], resolvesTo: [] }] }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://tracker.example.com/browse/PROJ%2099');
+  });
+
+  it('URL-encodes tokens with special characters', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links: { references: { 'ticket-key': { url: 'https://tracker.example.com/browse/{token}' } } },
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? { ...c, references: [{ matcher: 'ticket-key', token: 'TEST/&=?', namespace: 'global' as const, sources: ['subject' as const], resolvesTo: [] }] }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://tracker.example.com/browse/TEST%2F%26%3D%3F');
+  });
+});
+
+describe('renderReport multi-repo link scoping', () => {
+  it('uses different commit templates per repo', () => {
+    const text = renderReport(multiRepo, multiRepoNotes);
+    expect(text).toContain('https://github.com/example/backend/commit/aa000001');
+    expect(text).toContain('https://github.com/example/frontend/commit/ff000001');
+    expect(text).not.toContain('https://github.com/example/backend/commit/ff000001');
+    expect(text).not.toContain('https://github.com/example/frontend/commit/aa000001');
+  });
+});
+
+describe('renderReport stripPrefix', () => {
+  it('strips prefix before URL expansion for repo-scoped references', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '#99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://github.com/example/backend/pull/99');
+    expect(text).not.toContain('https://github.com/example/backend/pull/%2399');
+  });
+
+  it('renders plain token when no stripPrefix is configured', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '#99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://github.com/example/backend/pull/%2399');
+  });
+
+  it('strips suffix when configured', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}', stripSuffix: '!' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '99!', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://github.com/example/backend/pull/99');
+    expect(text).not.toContain('pull/99!');
+  });
+
+  it('does not strip prefix when token does not start with it', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://github.com/example/backend/pull/99');
+  });
+
+  it('does not construct RegExp from artifact data', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}', stripPrefix: '(.*)', stripSuffix: '$1' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '#99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('%2399');
+    expect(text).not.toContain('pull/99');
+  });
+
+  it('returns plain text when stripPrefix consumes the entire token', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}', stripPrefix: '#99' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '#99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).not.toContain('[\\#99](');
+    expect(text).toContain('\\#99');
+  });
+
+  it('returns plain text when combined prefix and suffix produce an empty token', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}', stripPrefix: '[', stripSuffix: ']' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '[]', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).not.toContain('[\\[\\]](');
+    expect(text).toContain('\\[\\]');
+  });
+});
+
+describe('renderReport global references across repos', () => {
+  it('resolves the same global reference template for commits in different repos', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      commits: multiRepo.commits.map((c) => {
+        if (c.sha === 'ff00000200000000000000000000000000000000') {
+          return {
+            ...c,
+            references: [{ matcher: 'ticket-key', token: 'PROJ-88', namespace: 'global' as const, sources: ['subject' as const], resolvesTo: [] }],
+            findings: ['unknown-reference' as const]
+          };
+        }
+        return c;
+      })
+    };
+    const text = renderReport(v);
+    expect(text).toContain('[PROJ-88](https://tracker.example.com/browse/PROJ-88)');
+    expect(text).toContain('[PROJ-99](https://tracker.example.com/browse/PROJ-99)');
+  });
+});
+
+describe('renderReport determinism with links', () => {
+  it('produces byte-identical output across runs', () => {
+    const a = renderReport(multiRepo, multiRepoNotes);
+    const b = renderReport(multiRepo, multiRepoNotes);
+    expect(a).toBe(b);
+  });
+
+  it('produces byte-identical output without links', () => {
+    const a = renderReport(verified, notes);
+    const b = renderReport(verified, notes);
+    expect(a).toBe(b);
+  });
+});
+
+describe('renderReport verification section', () => {
+  it('states re-verification was not performed when no context', () => {
+    const text = renderReport(verified);
+    expect(text).toMatch(/## Verification and provenance/);
+    expect(text).toContain('Repository re-verification was not performed.');
+  });
+
+  it('states verified when verification context is provided', () => {
+    const text = renderReport(verified, notes, { verified: true, movedRefs: [], fingerprintDiffers: false });
+    expect(text).toContain('Verified against the repositories');
+    expect(text).not.toContain('re-verification was not performed');
+  });
+
+  it('shows fingerprint note when config differs', () => {
+    const text = renderReport(verified, notes, { verified: true, movedRefs: [], fingerprintDiffers: true });
+    expect(text).toContain('fingerprints differently');
+  });
+
+  it('shows moved ref observations', () => {
+    const text = renderReport(verified, notes, {
+      verified: true, movedRefs: ['refs/tags/v1 moved from aaa to bbb', 'refs/tags/v2 moved from ccc to ddd'],
+      fingerprintDiffers: false
+    });
+    expect(text).toContain('Note: refs/tags/v1 moved from aaa to bbb');
+    expect(text).toContain('Note: refs/tags/v2 moved from ccc to ddd');
+  });
+
+  it('always includes the tracker-claim caveat', () => {
+    const withCtx = renderReport(verified, notes, { verified: true, movedRefs: [], fingerprintDiffers: false });
+    const without = renderReport(verified, notes);
+    for (const text of [withCtx, without]) {
+      expect(text).toContain('Tracker claims are taken on trust');
+    }
+  });
+
+  it('notes untriaged when no notes are supplied', () => {
+    const text = renderReport(verified);
+    expect(text).toContain('Findings are untriaged');
+  });
+
+  it('omits untriaged note when notes are supplied', () => {
+    const text = renderReport(verified, notes);
+    expect(text).not.toContain('Findings are untriaged');
+  });
+
+  it('is deterministic with verification context', () => {
+    const ctx = { verified: true as const, movedRefs: ['tag moved'], fingerprintDiffers: true };
+    expect(renderReport(verified, notes, ctx)).toBe(renderReport(verified, notes, ctx));
   });
 });
 

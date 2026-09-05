@@ -5,5 +5,21 @@
     { "name": "repo-a", "path": "../repo-a" },
     { "name": "repo-b", "path": "../repo-b" }
   ],
-  "policy": { "failOn": ["no-reference", "unknown-reference", "item-without-commits", "range-divergence"] }
+  "policy": { "failOn": ["no-reference", "unknown-reference", "item-without-commits", "range-divergence"] },
+  "links": {
+    "references": {
+      "ticket-key": "https://tracker.example.invalid/browse/{token}"
+    },
+    "repos": {
+      "repo-a": {
+        "commit": "https://github.com/example/repo-a/commit/{sha}"
+      },
+      "repo-b": {
+        "commit": "https://github.com/example/repo-b/commit/{sha}",
+        "references": {
+          "pr-ref": { "url": "https://github.com/example/repo-b/pull/{token}", "stripPrefix": "#" }
+        }
+      }
+    }
+  }
 }

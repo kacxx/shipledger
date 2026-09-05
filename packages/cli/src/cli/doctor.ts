@@ -75,6 +75,9 @@ export function runDoctor(argv: string[], cwd: string): number {
     lines.push(`  history  ${tag(origins.history)}: ${canonicalStringify(config.history)}`);
     lines.push(`  ignore   ${tag(origins.ignore)}: ${canonicalStringify(config.ignore)}`);
     lines.push(`  policy   ${tag(origins.policy)}: ${canonicalStringify(config.policy)}`);
+    if (config.links) {
+      lines.push(`  links    [adopter]: ${canonicalStringify(config.links)}`);
+    }
 
     const range = values['skill-cli-range'];
     if (range !== undefined) {

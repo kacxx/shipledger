@@ -131,4 +131,38 @@ describe('reconcile', () => {
     const { validateVerified } = await import('../../src/config/validate.js');
     expect(() => validateVerified(JSON.parse(JSON.stringify(reconcile(input()))))).not.toThrow();
   });
+
+  it('emits links at top level when config has links', () => {
+    const withLinks = mergeConfig({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: '../a' }],
+      links: {
+        references: { 'ticket-key': 'https://tracker.example.com/{token}' },
+        repos: { 'repo-a': { commit: 'https://example.com/{sha}' } }
+      }
+    }, '/tmp');
+    const out = reconcile(input({ config: withLinks }));
+    expect(out.links).toBeDefined();
+    expect(out.links?.references?.['ticket-key']?.url).toBe('https://tracker.example.com/{token}');
+    expect(out.links?.repos?.['repo-a']?.commit).toBe('https://example.com/{sha}');
+  });
+
+  it('omits links when config has no links', () => {
+    const out = reconcile(input());
+    expect(out.links).toBeUndefined();
+  });
+
+  it('emits links that satisfy the verified schema', async () => {
+    const { validateVerified } = await import('../../src/config/validate.js');
+    const withLinks = mergeConfig({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: '../a' }],
+      links: {
+        references: { 'ticket-key': 'https://tracker.example.com/{token}' },
+        repos: { 'repo-a': { commit: 'https://example.com/{sha}', references: { 'pr-ref': { url: 'https://example.com/pull/{token}', stripPrefix: '#' } } } }
+      }
+    }, '/tmp');
+    const out = reconcile(input({ config: withLinks, now: '2026-09-01T00:00:00Z' }));
+    expect(() => validateVerified(JSON.parse(JSON.stringify(out)))).not.toThrow();
+  });
 });

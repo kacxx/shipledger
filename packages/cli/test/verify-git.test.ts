@@ -209,6 +209,49 @@ describe('assertVerifiedAgainstGit', () => {
     // Same repo, different spelling: the fingerprint moves, the artifact does not.
     expect(result.fingerprintDiffers).toBe(true);
   });
+
+  it('catches a tampered link destination in the artifact', () => {
+    writeFileSync(configPath, JSON.stringify({
+      version: 1, preset: 'github-oss@1', repos: [{ name: 'r', path: repo!.path }],
+      links: { repos: { r: { commit: 'https://github.com/example/r/commit/{sha}' } } }
+    }));
+    silence();
+    runCheck(
+      ['--config', configPath, '--changeset', join(work as string, 'changeset.json'), '--out', outPath],
+      work as string
+    );
+    const tampered = artifact();
+    tampered.links!.repos!['r']!.commit = 'https://evil.example.com/{sha}';
+    expect(() => verify(tampered)).toThrow(/link metadata does not match/);
+  });
+
+  it('catches a tampered stripPrefix in the artifact', () => {
+    writeFileSync(configPath, JSON.stringify({
+      version: 1, preset: 'github-oss@1', repos: [{ name: 'r', path: repo!.path }],
+      links: { repos: { r: { commit: 'https://github.com/example/r/commit/{sha}', references: { 'pr-ref': { url: 'https://github.com/example/r/pull/{token}', stripPrefix: '#' } } } } }
+    }));
+    silence();
+    runCheck(
+      ['--config', configPath, '--changeset', join(work as string, 'changeset.json'), '--out', outPath],
+      work as string
+    );
+    const tampered = artifact();
+    tampered.links!.repos!['r']!.references!['pr-ref']!.stripPrefix = 'hijacked';
+    expect(() => verify(tampered)).toThrow(/link metadata does not match/);
+  });
+
+  it('accepts an artifact with links that match the config', () => {
+    writeFileSync(configPath, JSON.stringify({
+      version: 1, preset: 'github-oss@1', repos: [{ name: 'r', path: repo!.path }],
+      links: { repos: { r: { commit: 'https://github.com/example/r/commit/{sha}' } } }
+    }));
+    silence();
+    runCheck(
+      ['--config', configPath, '--changeset', join(work as string, 'changeset.json'), '--out', outPath],
+      work as string
+    );
+    expect(() => verify(artifact())).not.toThrow();
+  });
 });
 
 describe('render --verify-against-repos', () => {
@@ -233,5 +276,40 @@ describe('render --verify-against-repos', () => {
   it('does not touch the repositories unless asked', () => {
     // No --config given and none on disk: without the flag that must not matter.
     expect(runRender(['report', '--input', outPath], work as string)).toBe(0);
+  });
+
+  for (const fmt of ['changelog', 'release-notes'] as const) {
+    it(`emits verification confirmation to stderr for ${fmt}`, () => {
+      const writes: string[] = [];
+      vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+        writes.push(String(chunk));
+        return true;
+      });
+      vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      expect(runRender(
+        [fmt, '--input', outPath, '--config', configPath, '--verify-against-repos'],
+        work as string
+      )).toBe(0);
+      const stderr = writes.join('');
+      expect(stderr).toContain('Verified against the repositories');
+      expect(stderr).toContain('Tracker claims are taken on trust');
+    });
+  }
+
+  it('emits moved-ref note to stderr for changelog with verify', () => {
+    repo!.commit('feat: five (#5)');
+    const writes: string[] = [];
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      writes.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    expect(runRender(
+      ['changelog', '--input', outPath, '--config', configPath, '--verify-against-repos'],
+      work as string
+    )).toBe(0);
+    const stderr = writes.join('');
+    expect(stderr).toContain('Note:');
+    expect(stderr).toContain('now points at');
   });
 });

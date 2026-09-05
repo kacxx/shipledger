@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runCheck } from '../../src/cli/check.js';
+import { renderReport } from '../../src/render/report.js';
 import { validateVerified } from '../../src/config/validate.js';
 import { makeRepo, type FixtureRepo } from '../helpers/repo.js';
 
@@ -168,5 +169,99 @@ describe('runCheck', () => {
     const verified = validateVerified(JSON.parse(readFileSync(out, 'utf8')));
     expect(verified.commits.map((c) => c.repo)).toEqual(['alpha', 'beta']);
     expect(verified.ranges.map((r) => r.repo)).toEqual(['alpha', 'beta']);
+  });
+
+  it('propagates config links through check --stable → verified → render', () => {
+    repo = makeRepo();
+    repo.commit('base'); repo.tag('v1');
+    repo.commit('PROJ-1 first change');
+    repo.commit('#42 pr fix');
+    repo.tag('v2');
+
+    work = mkdtempSync(join(tmpdir(), 'shipledger-links-'));
+    const out = join(work, 'out.json');
+    writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: repo.path }],
+      policy: { failOn: [] },
+      links: {
+        references: { 'ticket-key': 'https://tracker.example.com/browse/{token}' },
+        repos: {
+          'repo-a': {
+            commit: 'https://github.com/example/repo-a/commit/{sha}',
+            references: { 'pr-ref': { url: 'https://github.com/example/repo-a/pull/{token}', stripPrefix: '#' } }
+          }
+        }
+      }
+    }));
+    writeFileSync(join(work, 'changeset.json'), JSON.stringify({
+      version: 1, id: 'release-links',
+      source: { kind: 'test', ref: 'local', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [{ id: 'PROJ-1', title: 'first', type: 'story', status: 'done', tokens: [{ matcher: 'ticket-key', token: 'PROJ-1' }] }],
+      ranges: [{ repo: 'repo-a', base: 'v1', head: 'v2' }]
+    }));
+
+    const args = ['--config', join(work, 'config.json'), '--changeset', join(work, 'changeset.json'), '--out', out, '--stable'];
+    expect(runCheck(args, process.cwd())).toBe(0);
+
+    const verified = validateVerified(JSON.parse(readFileSync(out, 'utf8')));
+    expect(verified.links).toBeDefined();
+    expect(verified.links?.references?.['ticket-key']?.url).toBe('https://tracker.example.com/browse/{token}');
+    expect(verified.links?.repos?.['repo-a']?.commit).toBe('https://github.com/example/repo-a/commit/{sha}');
+    expect(verified.links?.repos?.['repo-a']?.references?.['pr-ref']?.stripPrefix).toBe('#');
+
+    const report = renderReport(verified);
+    expect(report).toContain('https://github.com/example/repo-a/commit/');
+    expect(report).toContain('https://github.com/example/repo-a/pull/42');
+    expect(report).not.toContain('pull/%2342');
+
+    const report2 = renderReport(verified);
+    expect(report).toBe(report2);
+  });
+
+  it('renders resolved #42 reference as a clickable /pull/42 link in the report', () => {
+    repo = makeRepo();
+    repo.commit('base'); repo.tag('v1');
+    repo.commit('#42 quick fix');
+    repo.tag('v2');
+
+    work = mkdtempSync(join(tmpdir(), 'shipledger-pr-resolve-'));
+    const out = join(work, 'out.json');
+    writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: repo.path }],
+      policy: { failOn: [] },
+      links: {
+        repos: {
+          'repo-a': {
+            commit: 'https://github.com/example/repo-a/commit/{sha}',
+            references: { 'pr-ref': { url: 'https://github.com/example/repo-a/pull/{token}', stripPrefix: '#' } }
+          }
+        }
+      }
+    }));
+    writeFileSync(join(work, 'changeset.json'), JSON.stringify({
+      version: 1, id: 'release-pr-resolve',
+      source: { kind: 'test', ref: 'local', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [{
+        id: 'PR-42', title: 'quick fix', type: 'pr', status: 'merged',
+        tokens: [{ matcher: 'pr-ref', token: '#42', repo: 'repo-a' }]
+      }],
+      ranges: [{ repo: 'repo-a', base: 'v1', head: 'v2' }]
+    }));
+
+    const args = ['--config', join(work, 'config.json'), '--changeset', join(work, 'changeset.json'), '--out', out, '--stable'];
+    expect(runCheck(args, process.cwd())).toBe(0);
+
+    const verified = validateVerified(JSON.parse(readFileSync(out, 'utf8')));
+    const prCommit = verified.commits.find((c) => c.subject.includes('#42'));
+    expect(prCommit).toBeDefined();
+    expect(prCommit!.references.some((r) => r.matcher === 'pr-ref' && r.token === '#42' && r.resolvesTo.includes('PR-42'))).toBe(true);
+
+    const report = renderReport(verified);
+    expect(report).toContain('[\\#42](https://github.com/example/repo-a/pull/42)');
+    expect(report).toContain('→ PR-42');
+    expect(report).toMatch(/linked/);
+    expect(report).not.toMatch(/unknown\\-reference/);
   });
 });
