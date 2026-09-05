@@ -74,12 +74,11 @@ function referenceUrl(
   const entry = resolveRefEntry(links, repo, matcher, namespace);
   if (!entry) return null;
   let value = token;
-  if (entry.tokenReplace) {
-    try {
-      value = value.replace(new RegExp(entry.tokenReplace[0]), entry.tokenReplace[1]);
-    } catch {
-      return null;
-    }
+  if (entry.stripPrefix && value.startsWith(entry.stripPrefix)) {
+    value = value.slice(entry.stripPrefix.length);
+  }
+  if (entry.stripSuffix && value.endsWith(entry.stripSuffix)) {
+    value = value.slice(0, -entry.stripSuffix.length);
   }
   return expandTemplate(entry.url, { token: value });
 }
@@ -318,7 +317,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
     if (verification.fingerprintDiffers) {
       out.push('Note: this config fingerprints differently, which differing repo paths alone will cause.');
     }
-    for (const moved of verification.movedRefs) out.push(`Note: ${moved}`);
+    for (const moved of verification.movedRefs) out.push(`Note: ${mdEscape(moved)}`);
   } else {
     out.push('Repository re-verification was not performed.');
   }

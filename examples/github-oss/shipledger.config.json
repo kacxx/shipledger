@@ -7,7 +7,7 @@
       "repo-a": {
         "commit": "https://github.com/example/repo-a/commit/{sha}",
         "references": {
-          "pr-ref": { "url": "https://github.com/example/repo-a/pull/{token}", "tokenReplace": ["^#", ""] }
+          "pr-ref": { "url": "https://github.com/example/repo-a/pull/{token}", "stripPrefix": "#" }
         }
       }
     }

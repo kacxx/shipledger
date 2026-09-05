@@ -30,7 +30,8 @@ export function configOrigins(raw: RawConfig): ConfigOrigins {
 function normalizeRef(raw: RawReferenceTemplate): ResolvedReferenceLink {
   if (typeof raw === 'string') return { url: raw };
   const out: ResolvedReferenceLink = { url: raw.url };
-  if (raw.tokenReplace) out.tokenReplace = raw.tokenReplace;
+  if (raw.stripPrefix) out.stripPrefix = raw.stripPrefix;
+  if (raw.stripSuffix) out.stripSuffix = raw.stripSuffix;
   return out;
 }
 
@@ -107,11 +108,6 @@ export function assertLinksAgainstConfig(links: ResolvedLinks, config: ResolvedC
       try {
         validateTemplateUrl(ref.url, 'token', `links.references["${matcherId}"]`);
       } catch (err) { problems.push((err as Error).message); }
-      if (ref.tokenReplace) {
-        try { new RegExp(ref.tokenReplace[0]); } catch (err) {
-          problems.push(`links.references["${matcherId}"].tokenReplace pattern is not a valid regex: ${(err as Error).message}`);
-        }
-      }
     }
   }
 
@@ -140,11 +136,6 @@ export function assertLinksAgainstConfig(links: ResolvedLinks, config: ResolvedC
           try {
             validateTemplateUrl(ref.url, 'token', `links.repos["${repo}"].references["${matcherId}"]`);
           } catch (err) { problems.push((err as Error).message); }
-          if (ref.tokenReplace) {
-            try { new RegExp(ref.tokenReplace[0]); } catch (err) {
-              problems.push(`links.repos["${repo}"].references["${matcherId}"].tokenReplace pattern is not a valid regex: ${(err as Error).message}`);
-            }
-          }
         }
       }
     }

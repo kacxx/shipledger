@@ -22,7 +22,7 @@
       "backend": {
         "commit": "https://github.com/example/backend/commit/{sha}",
         "references": {
-          "pr-ref": { "url": "https://github.com/example/backend/pull/{token}", "tokenReplace": ["^#", ""] }
+          "pr-ref": { "url": "https://github.com/example/backend/pull/{token}", "stripPrefix": "#" }
         }
       },
       "frontend": {

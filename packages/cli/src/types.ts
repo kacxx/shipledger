@@ -72,7 +72,7 @@ export interface Changeset {
   ranges: RangeSpec[];
 }
 
-export type RawReferenceTemplate = string | { url: string; tokenReplace?: [string, string] };
+export type RawReferenceTemplate = string | { url: string; stripPrefix?: string; stripSuffix?: string };
 
 export interface RawRepoLinks {
   commit?: string;
@@ -86,7 +86,8 @@ export interface RawLinks {
 
 export interface ResolvedReferenceLink {
   url: string;
-  tokenReplace?: [string, string];
+  stripPrefix?: string;
+  stripSuffix?: string;
 }
 
 export interface ResolvedRepoLinks {

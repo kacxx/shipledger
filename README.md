@@ -65,11 +65,14 @@ named. Ref *names* are allowed to have moved on since, because branches
 legitimately do; if `head` no longer points where the artifact says, that is
 reported rather than treated as a failure.
 
-Two fields are excluded from the comparison, since both differ innocently when
-someone else verifies from their own checkout: `generatedAt`, and
-`configFingerprint`, which covers the repo paths as written in your config. A
-differing fingerprint is reported. Verification is version-locked — an artifact
-from a different CLI version is refused by name rather than compared.
+Three fields are excluded from re-derivation, since each differs innocently when
+someone else verifies from their own checkout: `generatedAt`, `configFingerprint`
+(which covers the repo paths as written in your config), and `links` (config
+metadata, not git-derived data). A differing fingerprint is reported. Links are
+compared separately against the config — a changed destination or strip rule
+fails verification even when the checkout paths differ. Verification is
+version-locked — an artifact from a different CLI version is refused by name
+rather than compared.
 
 **It agrees with your tracker.** Nothing local can tell you this. The claim is
 embedded in the artifact and taken on trust, because the second hop — this pull

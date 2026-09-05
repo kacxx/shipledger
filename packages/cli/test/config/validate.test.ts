@@ -146,11 +146,11 @@ describe('validateConfig links', () => {
     expect(() => validateConfig(c)).not.toThrow();
   });
 
-  it('accepts links with object reference form and tokenReplace', () => {
+  it('accepts links with object reference form and stripPrefix', () => {
     const c = {
       ...config,
       links: {
-        repos: { 'repo-a': { references: { 'pr': { url: 'https://example.com/{token}', tokenReplace: ['^#', ''] } } } }
+        repos: { 'repo-a': { references: { 'pr': { url: 'https://example.com/{token}', stripPrefix: '#' } } } }
       }
     };
     expect(() => validateConfig(c)).not.toThrow();

@@ -225,10 +225,10 @@ describe('assertVerifiedAgainstGit', () => {
     expect(() => verify(tampered)).toThrow(/link metadata does not match/);
   });
 
-  it('catches a tampered tokenReplace in the artifact', () => {
+  it('catches a tampered stripPrefix in the artifact', () => {
     writeFileSync(configPath, JSON.stringify({
       version: 1, preset: 'github-oss@1', repos: [{ name: 'r', path: repo!.path }],
-      links: { repos: { r: { commit: 'https://github.com/example/r/commit/{sha}', references: { 'pr-ref': { url: 'https://github.com/example/r/pull/{token}', tokenReplace: ['^#', ''] } } } } }
+      links: { repos: { r: { commit: 'https://github.com/example/r/commit/{sha}', references: { 'pr-ref': { url: 'https://github.com/example/r/pull/{token}', stripPrefix: '#' } } } } }
     }));
     silence();
     runCheck(
@@ -236,7 +236,7 @@ describe('assertVerifiedAgainstGit', () => {
       work as string
     );
     const tampered = artifact();
-    tampered.links!.repos!['r']!.references!['pr-ref']!.tokenReplace = ['.*', 'hijacked'];
+    tampered.links!.repos!['r']!.references!['pr-ref']!.stripPrefix = 'hijacked';
     expect(() => verify(tampered)).toThrow(/link metadata does not match/);
   });
 

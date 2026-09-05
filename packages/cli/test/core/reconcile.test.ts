@@ -159,7 +159,7 @@ describe('reconcile', () => {
       repos: [{ name: 'repo-a', path: '../a' }],
       links: {
         references: { 'ticket-key': 'https://tracker.example.com/{token}' },
-        repos: { 'repo-a': { commit: 'https://example.com/{sha}', references: { 'pr-ref': { url: 'https://example.com/pull/{token}', tokenReplace: ['^#', ''] } } } }
+        repos: { 'repo-a': { commit: 'https://example.com/{sha}', references: { 'pr-ref': { url: 'https://example.com/pull/{token}', stripPrefix: '#' } } } }
       }
     }, '/tmp');
     const out = reconcile(input({ config: withLinks, now: '2026-09-01T00:00:00Z' }));

@@ -189,7 +189,7 @@ describe('runCheck', () => {
         repos: {
           'repo-a': {
             commit: 'https://github.com/example/repo-a/commit/{sha}',
-            references: { 'pr-ref': { url: 'https://github.com/example/repo-a/pull/{token}', tokenReplace: ['^#', ''] } }
+            references: { 'pr-ref': { url: 'https://github.com/example/repo-a/pull/{token}', stripPrefix: '#' } }
           }
         }
       }
@@ -208,7 +208,7 @@ describe('runCheck', () => {
     expect(verified.links).toBeDefined();
     expect(verified.links?.references?.['ticket-key']?.url).toBe('https://tracker.example.com/browse/{token}');
     expect(verified.links?.repos?.['repo-a']?.commit).toBe('https://github.com/example/repo-a/commit/{sha}');
-    expect(verified.links?.repos?.['repo-a']?.references?.['pr-ref']?.tokenReplace).toEqual(['^#', '']);
+    expect(verified.links?.repos?.['repo-a']?.references?.['pr-ref']?.stripPrefix).toBe('#');
 
     const report = renderReport(verified);
     expect(report).toContain('https://github.com/example/repo-a/commit/');
@@ -235,7 +235,7 @@ describe('runCheck', () => {
         repos: {
           'repo-a': {
             commit: 'https://github.com/example/repo-a/commit/{sha}',
-            references: { 'pr-ref': { url: 'https://github.com/example/repo-a/pull/{token}', tokenReplace: ['^#', ''] } }
+            references: { 'pr-ref': { url: 'https://github.com/example/repo-a/pull/{token}', stripPrefix: '#' } }
           }
         }
       }

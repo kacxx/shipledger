@@ -73,6 +73,16 @@ export function runRender(argv: string[], cwd: string): number {
     if (format === 'report') {
       process.stdout.write(renderReport(verified, notes, verificationCtx));
     } else {
+      if (verificationCtx) {
+        process.stderr.write('Verified against the repositories: every commit, its content, and every derived field match.\n');
+        if (verificationCtx.fingerprintDiffers) {
+          process.stderr.write('Note: this config fingerprints differently, which differing repo paths alone will cause.\n');
+        }
+        for (const moved of verificationCtx.movedRefs) {
+          process.stderr.write(`Note: ${moved}\n`);
+        }
+        process.stderr.write('Engine verdict is based on policy and git evidence only. Tracker claims are taken on trust.\n');
+      }
       process.stdout.write(RENDERERS[format as 'changelog' | 'release-notes'](verified, notes));
     }
     return 0;

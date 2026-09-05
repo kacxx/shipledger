@@ -122,7 +122,7 @@ describe('assertLinksAgainstConfig', () => {
 
   it('accepts valid repo-scoped reference under repos', () => {
     const c = withLinks({
-      repos: { 'repo-a': { references: { 'pr-ref': { url: 'https://example.com/pull/{token}', tokenReplace: ['^#', ''] } } } }
+      repos: { 'repo-a': { references: { 'pr-ref': { url: 'https://example.com/pull/{token}', stripPrefix: '#' } } } }
     });
     expect(() => assertLinksAgainstConfig(c.links!, c)).not.toThrow();
   });
@@ -179,11 +179,11 @@ describe('assertLinksAgainstConfig', () => {
     expect(() => assertLinksAgainstConfig(c.links!, c)).toThrow(/control/);
   });
 
-  it('rejects invalid tokenReplace regex', () => {
+  it('accepts stripSuffix on a reference template', () => {
     const c = withLinks({
-      repos: { 'repo-a': { references: { 'pr-ref': { url: 'https://example.com/{token}', tokenReplace: ['(invalid', ''] } } } }
+      repos: { 'repo-a': { references: { 'pr-ref': { url: 'https://example.com/pull/{token}', stripSuffix: '!' } } } }
     });
-    expect(() => assertLinksAgainstConfig(c.links!, c)).toThrow(/regex/);
+    expect(() => assertLinksAgainstConfig(c.links!, c)).not.toThrow();
   });
 
   it('rejects malformed brace expression in commit template', () => {

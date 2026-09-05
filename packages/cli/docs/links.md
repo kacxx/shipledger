@@ -27,7 +27,7 @@ Add a `links` object to `shipledger.config.json`:
         "references": {
           "pr-ref": {
             "url": "https://github.com/example/backend/pull/{token}",
-            "tokenReplace": ["^#", ""]
+            "stripPrefix": "#"
           }
         }
       },
@@ -54,7 +54,7 @@ A global matcher placed under `links.repos` or a repo-scoped matcher at
 ### String shorthand
 
 A reference template can be a plain string (URL only) or an object with `url`
-and optional `tokenReplace`:
+and optional `stripPrefix` / `stripSuffix`:
 
 ```json
 "ticket-key": "https://tracker.example.com/browse/{token}"
@@ -84,10 +84,11 @@ placeholder) is rejected during config validation and ignored during rendering.
 Unknown placeholders like `{branch}` are rejected. Malformed brace expressions
 like `{sha-1}`, `{}`, or bare `{` are also rejected.
 
-## tokenReplace
+## stripPrefix / stripSuffix
 
-A `[pattern, replacement]` pair applied to the token value before URL
-interpolation. The pattern is a JavaScript regular expression.
+Literal string transforms applied to the token value before URL interpolation.
+`stripPrefix` removes a leading literal if the token starts with it;
+`stripSuffix` removes a trailing literal if the token ends with it.
 
 Common use case — PR references carry the `#` prefix (`#312`), but the forge URL
 needs the bare number:
@@ -95,12 +96,11 @@ needs the bare number:
 ```json
 "pr-ref": {
   "url": "https://github.com/example/repo/pull/{token}",
-  "tokenReplace": ["^#", ""]
+  "stripPrefix": "#"
 }
 ```
 
-An invalid regex pattern is rejected during config validation. If an artifact
-somehow carries an invalid pattern, the renderer falls back to plain text.
+Both fields are optional. When both are present, the prefix is stripped first.
 
 ## Fingerprint and verified-artifact binding
 
@@ -109,7 +109,7 @@ verified changeset). Changing a link template changes the fingerprint.
 
 When `--verify-against-repos` is used, the link metadata embedded in the
 verified artifact is compared against the config's resolved links. A mismatch —
-a changed destination URL or tokenReplace — fails verification, even when the
+a changed destination URL or strip rule — fails verification, even when the
 checkout paths differ.
 
 Links are excluded from the reconciliation re-derivation comparison because they
@@ -138,7 +138,7 @@ Specifically, the renderer falls back to plain text when:
 - The template is static (no placeholder substitutions)
 - The template contains malformed braces after expansion
 - The expanded URL is not valid HTTP/HTTPS
-- The tokenReplace pattern is an invalid regex
+- The token becomes empty after stripping
 
 ## Doctor output
 

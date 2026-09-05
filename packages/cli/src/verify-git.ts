@@ -152,7 +152,7 @@ export function assertVerifiedAgainstGit(
   if (canonicalStringify(verified.links) !== canonicalStringify(config.links)) {
     throw usageError(
       'Artifact link metadata does not match the config. ' +
-      'A changed link destination or tokenReplace cannot pass verification.'
+      'A changed link destination or strip rule cannot pass verification.'
     );
   }
 

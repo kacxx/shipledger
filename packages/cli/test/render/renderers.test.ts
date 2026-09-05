@@ -514,18 +514,18 @@ describe('renderReport malformed templates', () => {
     expect(text).not.toMatch(/\[PROJ\\-99\]\(/);
   });
 
-  it('falls back to plain text when tokenReplace regex is invalid', () => {
+  it('strips prefix only when token starts with the literal', () => {
     const v: VerifiedChangeset = {
       ...multiRepo,
-      links: { repos: { backend: { references: { 'pr-ref': { url: 'https://example.com/pull/{token}', tokenReplace: ['(invalid', ''] } } } } },
+      links: { repos: { backend: { references: { 'pr-ref': { url: 'https://example.com/pull/{token}', stripPrefix: '#' } } } } },
       commits: multiRepo.commits.map((c) =>
         c.sha === 'aa00000300000000000000000000000000000000'
-          ? { ...c, references: [{ matcher: 'pr-ref', token: '#99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }] }
+          ? { ...c, references: [{ matcher: 'pr-ref', token: '99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }] }
           : c
       )
     };
     const text = renderReport(v);
-    expect(text).not.toMatch(/\[\\#99\]\(/);
+    expect(text).toContain('https://example.com/pull/99');
   });
 
   it('falls back to plain text when template has malformed braces', () => {
@@ -587,8 +587,8 @@ describe('renderReport multi-repo link scoping', () => {
   });
 });
 
-describe('renderReport tokenReplace', () => {
-  it('applies tokenReplace before URL expansion for repo-scoped references', () => {
+describe('renderReport stripPrefix', () => {
+  it('strips prefix before URL expansion for repo-scoped references', () => {
     const v: VerifiedChangeset = {
       ...multiRepo,
       commits: multiRepo.commits.map((c) =>
@@ -606,7 +606,7 @@ describe('renderReport tokenReplace', () => {
     expect(text).not.toContain('https://github.com/example/backend/pull/%2399');
   });
 
-  it('renders plain token when no tokenReplace is configured', () => {
+  it('renders plain token when no stripPrefix is configured', () => {
     const links: ResolvedLinks = {
       repos: {
         backend: {
@@ -630,6 +630,77 @@ describe('renderReport tokenReplace', () => {
     };
     const text = renderReport(v);
     expect(text).toContain('https://github.com/example/backend/pull/%2399');
+  });
+
+  it('strips suffix when configured', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}', stripSuffix: '!' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '99!', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://github.com/example/backend/pull/99');
+    expect(text).not.toContain('pull/99!');
+  });
+
+  it('does not strip prefix when token does not start with it', () => {
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('https://github.com/example/backend/pull/99');
+  });
+
+  it('does not construct RegExp from artifact data', () => {
+    const links: ResolvedLinks = {
+      repos: {
+        backend: {
+          commit: 'https://github.com/example/backend/commit/{sha}',
+          references: { 'pr-ref': { url: 'https://github.com/example/backend/pull/{token}', stripPrefix: '(.*)', stripSuffix: '$1' } }
+        }
+      }
+    };
+    const v: VerifiedChangeset = {
+      ...multiRepo,
+      links,
+      commits: multiRepo.commits.map((c) =>
+        c.sha === 'aa00000300000000000000000000000000000000'
+          ? {
+              ...c,
+              references: [{ matcher: 'pr-ref', token: '#99', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }],
+              findings: ['unknown-reference' as const]
+            }
+          : c
+      )
+    };
+    const text = renderReport(v);
+    expect(text).toContain('%2399');
+    expect(text).not.toContain('pull/99');
   });
 });
 

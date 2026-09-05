@@ -17,7 +17,7 @@
       "repo-b": {
         "commit": "https://github.com/example/repo-b/commit/{sha}",
         "references": {
-          "pr-ref": { "url": "https://github.com/example/repo-b/pull/{token}", "tokenReplace": ["^#", ""] }
+          "pr-ref": { "url": "https://github.com/example/repo-b/pull/{token}", "stripPrefix": "#" }
         }
       }
     }
