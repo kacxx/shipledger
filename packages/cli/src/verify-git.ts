@@ -15,7 +15,7 @@ import type {
  * verifies the same artifact from their own checkout. Everything else must
  * reproduce exactly.
  */
-const NOT_COMPARED = new Set(['generatedAt', 'configFingerprint']);
+const NOT_COMPARED = new Set(['generatedAt', 'configFingerprint', 'links']);
 
 const comparable = (v: VerifiedChangeset): string =>
   canonicalStringify(Object.fromEntries(Object.entries(v).filter(([k]) => !NOT_COMPARED.has(k))));

@@ -4,7 +4,10 @@ import { envError, usageError } from '../errors.js';
 import { fingerprint } from '../core/canonical.js';
 import { resolvePreset } from './presets.js';
 import { validateConfig } from './validate.js';
-import type { RawConfig, ResolvedConfig } from '../types.js';
+import type {
+  RawConfig, RawLinks, RawReferenceTemplate, ResolvedConfig, ResolvedLinks,
+  ResolvedReferenceLink, ResolvedRepoLinks
+} from '../types.js';
 
 export type ConfigOrigin = 'preset' | 'adopter';
 
@@ -24,13 +27,137 @@ export function configOrigins(raw: RawConfig): ConfigOrigins {
   };
 }
 
+function normalizeRef(raw: RawReferenceTemplate): ResolvedReferenceLink {
+  if (typeof raw === 'string') return { url: raw };
+  const out: ResolvedReferenceLink = { url: raw.url };
+  if (raw.tokenReplace) out.tokenReplace = raw.tokenReplace;
+  return out;
+}
+
+function normalizeRefs(raw: Record<string, RawReferenceTemplate>): Record<string, ResolvedReferenceLink> {
+  const out: Record<string, ResolvedReferenceLink> = {};
+  for (const [k, v] of Object.entries(raw)) out[k] = normalizeRef(v);
+  return out;
+}
+
+export function resolveLinks(raw: RawLinks): ResolvedLinks {
+  const out: ResolvedLinks = {};
+  if (raw.references) out.references = normalizeRefs(raw.references);
+  if (raw.repos) {
+    out.repos = {};
+    for (const [repo, rl] of Object.entries(raw.repos)) {
+      const resolved: ResolvedRepoLinks = {};
+      if (rl.commit) resolved.commit = rl.commit;
+      if (rl.references) resolved.references = normalizeRefs(rl.references);
+      out.repos[repo] = resolved;
+    }
+  }
+  return out;
+}
+
+function validateTemplateUrl(template: string, placeholder: string, label: string): void {
+  if (!template.includes(`{${placeholder}}`)) {
+    throw usageError(`${label} must contain {${placeholder}}.`);
+  }
+  const unknowns = [...template.matchAll(/\{(\w+)\}/g)]
+    .map((m) => m[1] as string)
+    .filter((p) => p !== placeholder);
+  if (unknowns.length > 0) {
+    throw usageError(`${label} contains unknown placeholder(s): ${unknowns.map((u) => `{${u}}`).join(', ')}.`);
+  }
+  const dummy = template.replaceAll(`{${placeholder}}`, 'DUMMY_VALUE');
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(dummy)) {
+    throw usageError(`${label} contains control characters.`);
+  }
+  let url: URL;
+  try {
+    url = new URL(dummy);
+  } catch {
+    throw usageError(`${label} is not a valid URL template.`);
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw usageError(`${label} must use http: or https: protocol.`);
+  }
+  if (url.username !== '' || url.password !== '') {
+    throw usageError(`${label} must not contain credentials.`);
+  }
+}
+
+export function assertLinksAgainstConfig(links: ResolvedLinks, config: ResolvedConfig): void {
+  const repoNames = new Set(config.repos.map((r) => r.name));
+  const matcherMap = new Map(config.matchers.map((m) => [m.id, m]));
+  const problems: string[] = [];
+
+  if (links.references) {
+    for (const [matcherId, ref] of Object.entries(links.references)) {
+      const matcher = matcherMap.get(matcherId);
+      if (!matcher) {
+        problems.push(`links.references names unknown matcher "${matcherId}"`);
+        continue;
+      }
+      if (matcher.namespace !== 'global') {
+        problems.push(`links.references["${matcherId}"] is a repo-scoped matcher — move it under links.repos.<repo>.references`);
+        continue;
+      }
+      try {
+        validateTemplateUrl(ref.url, 'token', `links.references["${matcherId}"]`);
+      } catch (err) { problems.push((err as Error).message); }
+      if (ref.tokenReplace) {
+        try { new RegExp(ref.tokenReplace[0]); } catch (err) {
+          problems.push(`links.references["${matcherId}"].tokenReplace pattern is not a valid regex: ${(err as Error).message}`);
+        }
+      }
+    }
+  }
+
+  if (links.repos) {
+    for (const [repo, rl] of Object.entries(links.repos)) {
+      if (!repoNames.has(repo)) {
+        problems.push(`links.repos names unknown repo "${repo}"`);
+        continue;
+      }
+      if (rl.commit) {
+        try {
+          validateTemplateUrl(rl.commit, 'sha', `links.repos["${repo}"].commit`);
+        } catch (err) { problems.push((err as Error).message); }
+      }
+      if (rl.references) {
+        for (const [matcherId, ref] of Object.entries(rl.references)) {
+          const matcher = matcherMap.get(matcherId);
+          if (!matcher) {
+            problems.push(`links.repos["${repo}"].references names unknown matcher "${matcherId}"`);
+            continue;
+          }
+          if (matcher.namespace !== 'repo') {
+            problems.push(`links.repos["${repo}"].references["${matcherId}"] is a global matcher — move it to links.references`);
+            continue;
+          }
+          try {
+            validateTemplateUrl(ref.url, 'token', `links.repos["${repo}"].references["${matcherId}"]`);
+          } catch (err) { problems.push((err as Error).message); }
+          if (ref.tokenReplace) {
+            try { new RegExp(ref.tokenReplace[0]); } catch (err) {
+              problems.push(`links.repos["${repo}"].references["${matcherId}"].tokenReplace pattern is not a valid regex: ${(err as Error).message}`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    throw usageError(`Link configuration is invalid:\n${problems.map((p) => `  ${p}`).join('\n')}`);
+  }
+}
+
 export function mergeConfig(
   raw: RawConfig,
   configDir: string,
   opts: { allowUnpinned?: boolean } = {}
 ): ResolvedConfig {
   const preset = resolvePreset(raw.preset, opts);
-  return {
+  const config: ResolvedConfig = {
     version: raw.version,
     presetName: preset.name,
     presetVersion: preset.version,
@@ -44,6 +171,8 @@ export function mergeConfig(
     ignore: raw.ignore ?? preset.defaults.ignore,
     policy: raw.policy ?? preset.defaults.policy
   };
+  if (raw.links) config.links = resolveLinks(raw.links);
+  return config;
 }
 
 export function assertConfigIdentities(config: ResolvedConfig): void {
@@ -76,7 +205,8 @@ export function fingerprintConfig(config: ResolvedConfig, cliVersion: string): s
     matchers: config.matchers,
     history: config.history,
     ignore: config.ignore,
-    policy: config.policy
+    policy: config.policy,
+    links: config.links
   });
 }
 
@@ -99,5 +229,6 @@ export function loadConfig(
   const raw = validateConfig(parsed);
   const config = mergeConfig(raw, dirname(resolve(path)));
   assertConfigIdentities(config);
+  if (config.links) assertLinksAgainstConfig(config.links, config);
   return { config, configFingerprint: fingerprintConfig(config, cliVersion), origins: configOrigins(raw) };
 }

@@ -1,5 +1,8 @@
 import { buildNoteLookup, commitKey, referenceKey } from '../notes.js';
-import type { CommitResult, LinkMetadata, NotesFile, RangeResult, VerifiedChangeset } from '../types.js';
+import type {
+  CommitResult, Namespace, NotesFile, RangeResult,
+  ResolvedLinks, ResolvedReferenceLink, VerifiedChangeset
+} from '../types.js';
 
 const short = (sha: string): string => sha.slice(0, 8);
 
@@ -41,19 +44,33 @@ function expandTemplate(template: string, vars: Record<string, string>): string 
   return safeUrl(expanded);
 }
 
-function commitUrl(links: LinkMetadata | undefined, repo: string, sha: string): string | null {
+function commitUrl(links: ResolvedLinks | undefined, repo: string, sha: string): string | null {
   const tpl = links?.repos?.[repo]?.commit;
   if (!tpl) return null;
   return expandTemplate(tpl, { sha });
 }
 
-function referenceUrl(links: LinkMetadata | undefined, repo: string, matcher: string, token: string): string | null {
-  const tpl = links?.repos?.[repo]?.references?.[matcher];
-  if (!tpl) return null;
-  return expandTemplate(tpl, { token });
+function resolveRefEntry(
+  links: ResolvedLinks | undefined, repo: string, matcher: string, namespace: Namespace
+): ResolvedReferenceLink | undefined {
+  if (namespace === 'global') return links?.references?.[matcher];
+  return links?.repos?.[repo]?.references?.[matcher];
 }
 
-function linkedSha(links: LinkMetadata | undefined, repo: string, sha: string): string {
+function referenceUrl(
+  links: ResolvedLinks | undefined, repo: string,
+  matcher: string, token: string, namespace: Namespace
+): string | null {
+  const entry = resolveRefEntry(links, repo, matcher, namespace);
+  if (!entry) return null;
+  let value = token;
+  if (entry.tokenReplace) {
+    value = value.replace(new RegExp(entry.tokenReplace[0]), entry.tokenReplace[1]);
+  }
+  return expandTemplate(entry.url, { token: value });
+}
+
+function linkedSha(links: ResolvedLinks | undefined, repo: string, sha: string): string {
   const dest = commitUrl(links, repo, sha);
   return dest ? `[\`${short(sha)}\`](${dest})` : `\`${short(sha)}\``;
 }
@@ -63,8 +80,11 @@ function linkedItemId(id: string, itemUrls: Map<string, string>): string {
   return dest ? `[${mdEscape(id)}](${dest})` : mdEscape(id);
 }
 
-function linkedRefToken(links: LinkMetadata | undefined, repo: string, matcher: string, token: string): string {
-  const dest = referenceUrl(links, repo, matcher, token);
+function linkedRefToken(
+  links: ResolvedLinks | undefined, repo: string,
+  matcher: string, token: string, namespace: Namespace
+): string {
+  const dest = referenceUrl(links, repo, matcher, token, namespace);
   return dest ? `[${mdEscape(token)}](${dest})` : mdEscape(token);
 }
 
@@ -77,7 +97,7 @@ function commitRow(
   status: string,
   detail: string,
   noteSuffix: string,
-  links: LinkMetadata | undefined
+  links: ResolvedLinks | undefined
 ): string {
   return `| ${mdEscape(c.repo)} | ${linkedSha(links, c.repo, c.sha)} | ${mdEscape(c.subject)} | ${status} | ${detail}${noteSuffix} |`;
 }
@@ -103,7 +123,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
   const out: string[] = [];
   const s = verified.summary;
   const lookup = buildNoteLookup(notes ?? { version: 1 });
-  const links = verified.changeset.links;
+  const links = verified.links;
 
   const itemUrls = new Map<string, string>();
   for (const ci of verified.changeset.items) {
@@ -189,7 +209,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
         if (unresolved.length > 0) {
           const tokens = unresolved.map((r) => {
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            return `${linkedRefToken(links, c.repo, r.matcher, r.token)} (${mdEscape(r.matcher)})${noteSuffix(entry)}`;
+            return `${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)})${noteSuffix(entry)}`;
           }).join('; ');
           const also = linked.length > 0 ? ` · also → ${[...new Set(linked)].map((id) => linkedItemId(id, itemUrls)).join(', ')}` : '';
           out.push(commitRow(c, 'unknown\\-reference', `${tokens}${also}`, '', links));
@@ -264,7 +284,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile): st
         if (unresolved.length > 0) {
           for (const r of unresolved) {
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
+            out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
           }
         }
         if (c.findings.includes('no-reference')) {

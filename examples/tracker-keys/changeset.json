@@ -27,23 +27,6 @@
       ]
     }
   ],
-  "links": {
-    "repos": {
-      "repo-a": {
-        "commit": "https://github.com/example/repo-a/commit/{sha}",
-        "references": {
-          "ticket-key": "https://tracker.example.invalid/browse/{token}"
-        }
-      },
-      "repo-b": {
-        "commit": "https://github.com/example/repo-b/commit/{sha}",
-        "references": {
-          "ticket-key": "https://tracker.example.invalid/browse/{token}",
-          "pr-ref": "https://github.com/example/repo-b/pull/{token}"
-        }
-      }
-    }
-  },
   "ranges": [
     { "repo": "repo-a", "base": "v1.3.0", "head": "v1.4.0" },
     { "repo": "repo-b", "base": "release/1.3", "head": "release/1.4", "include": ["packages/thing/**"] }

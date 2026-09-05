@@ -122,60 +122,65 @@ describe('validateNotes', () => {
   });
 });
 
-describe('validateChangeset links', () => {
-  it('accepts a changeset with links', () => {
-    const cs = {
-      ...changeset,
+describe('validateChangeset rejects links (now config-only)', () => {
+  it('rejects a changeset with links since they moved to config', () => {
+    const cs = { ...changeset, links: { repos: { 'repo-a': { commit: 'https://example.com/{sha}' } } } };
+    expect(() => validateChangeset(cs)).toThrow(CliError);
+  });
+});
+
+describe('validateConfig links', () => {
+  it('accepts a config with links', () => {
+    const c = {
+      ...config,
       links: {
-        repos: {
-          'repo-a': {
-            commit: 'https://github.com/example/repo-a/commit/{sha}',
-            references: { 'ticket-key': 'https://tracker.example.com/browse/{token}' }
-          }
-        }
+        references: { 'ticket-key': 'https://tracker.example.com/browse/{token}' },
+        repos: { 'repo-a': { commit: 'https://example.com/{sha}' } }
       }
     };
-    expect(validateChangeset(cs).links?.repos?.['repo-a']?.commit).toContain('{sha}');
+    expect(validateConfig(c).links).toBeDefined();
   });
 
-  it('accepts links with only commit template', () => {
-    const cs = { ...changeset, links: { repos: { 'repo-a': { commit: 'https://example.com/{sha}' } } } };
-    expect(() => validateChangeset(cs)).not.toThrow();
+  it('accepts links with string reference shorthand', () => {
+    const c = { ...config, links: { references: { 'tk': 'https://example.com/{token}' } } };
+    expect(() => validateConfig(c)).not.toThrow();
   });
 
-  it('accepts links with only references', () => {
-    const cs = { ...changeset, links: { repos: { 'repo-a': { references: { 'tk': 'https://example.com/{token}' } } } } };
-    expect(() => validateChangeset(cs)).not.toThrow();
-  });
-
-  it('accepts empty repos object', () => {
-    const cs = { ...changeset, links: { repos: {} } };
-    expect(() => validateChangeset(cs)).not.toThrow();
+  it('accepts links with object reference form and tokenReplace', () => {
+    const c = {
+      ...config,
+      links: {
+        repos: { 'repo-a': { references: { 'pr': { url: 'https://example.com/{token}', tokenReplace: ['^#', ''] } } } }
+      }
+    };
+    expect(() => validateConfig(c)).not.toThrow();
   });
 
   it('accepts empty links object', () => {
-    const cs = { ...changeset, links: {} };
-    expect(() => validateChangeset(cs)).not.toThrow();
+    expect(() => validateConfig({ ...config, links: {} })).not.toThrow();
   });
 
-  it('rejects unknown properties inside a repo link', () => {
-    const cs = { ...changeset, links: { repos: { 'repo-a': { commit: 'https://example.com/{sha}', extra: true } } } };
-    expect(() => validateChangeset(cs)).toThrow(CliError);
+  it('accepts empty repos inside links', () => {
+    expect(() => validateConfig({ ...config, links: { repos: {} } })).not.toThrow();
   });
 
   it('rejects unknown top-level properties inside links', () => {
-    const cs = { ...changeset, links: { repos: {}, extra: 'bad' } };
-    expect(() => validateChangeset(cs)).toThrow(CliError);
+    expect(() => validateConfig({ ...config, links: { extra: 'bad' } })).toThrow(CliError);
+  });
+
+  it('rejects unknown properties inside a repo link', () => {
+    const c = { ...config, links: { repos: { 'repo-a': { commit: 'https://example.com/{sha}', extra: true } } } };
+    expect(() => validateConfig(c)).toThrow(CliError);
   });
 
   it('rejects empty commit template', () => {
-    const cs = { ...changeset, links: { repos: { 'repo-a': { commit: '' } } } };
-    expect(() => validateChangeset(cs)).toThrow(CliError);
+    const c = { ...config, links: { repos: { 'repo-a': { commit: '' } } } };
+    expect(() => validateConfig(c)).toThrow(CliError);
   });
 
-  it('rejects empty reference template', () => {
-    const cs = { ...changeset, links: { repos: { 'repo-a': { references: { 'tk': '' } } } } };
-    expect(() => validateChangeset(cs)).toThrow(CliError);
+  it('rejects empty reference template string', () => {
+    const c = { ...config, links: { references: { 'tk': '' } } };
+    expect(() => validateConfig(c)).toThrow(CliError);
   });
 });
 

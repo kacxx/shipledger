@@ -33,6 +33,7 @@ export interface RawConfig {
   history?: HistoryMode;
   ignore?: IgnoreConfig;
   policy?: PolicyConfig;
+  links?: RawLinks;
 }
 
 export interface ResolvedConfig {
@@ -45,6 +46,7 @@ export interface ResolvedConfig {
   history: HistoryMode;
   ignore: IgnoreConfig;
   policy: PolicyConfig;
+  links?: ResolvedLinks;
 }
 
 export interface ItemToken { matcher: string; token: string; repo?: string }
@@ -62,22 +64,39 @@ export interface ChangesetItem {
 export interface RangeSpec { repo: string; base: string; head: string; include?: string[] }
 export interface ChangesetSource { kind: string; ref: string; fetchedAt: string }
 
-export interface RepoLinks {
-  commit?: string;
-  references?: Record<string, string>;
-}
-
-export interface LinkMetadata {
-  repos?: Record<string, RepoLinks>;
-}
-
 export interface Changeset {
   version: 1;
   id: string;
   source: ChangesetSource;
   items: ChangesetItem[];
   ranges: RangeSpec[];
-  links?: LinkMetadata;
+}
+
+export type RawReferenceTemplate = string | { url: string; tokenReplace?: [string, string] };
+
+export interface RawRepoLinks {
+  commit?: string;
+  references?: Record<string, RawReferenceTemplate>;
+}
+
+export interface RawLinks {
+  references?: Record<string, RawReferenceTemplate>;
+  repos?: Record<string, RawRepoLinks>;
+}
+
+export interface ResolvedReferenceLink {
+  url: string;
+  tokenReplace?: [string, string];
+}
+
+export interface ResolvedRepoLinks {
+  commit?: string;
+  references?: Record<string, ResolvedReferenceLink>;
+}
+
+export interface ResolvedLinks {
+  references?: Record<string, ResolvedReferenceLink>;
+  repos?: Record<string, ResolvedRepoLinks>;
 }
 
 export interface CommitRecord {
@@ -155,7 +174,8 @@ export interface VerifiedChangeset {
   history: HistoryMode;
   configFingerprint: string;
   policy: PolicyConfig;
-  changeset: { id: string; source: ChangesetSource; items: ChangesetItem[]; links?: LinkMetadata };
+  changeset: { id: string; source: ChangesetSource; items: ChangesetItem[] };
+  links?: ResolvedLinks;
   ranges: RangeResult[];
   commits: CommitResult[];
   items: ItemResult[];
