@@ -2,6 +2,8 @@
 
 Checks that what your tracker says shipped actually shipped.
 
+**Platform map:** the four-layer release vision, contracts, and agent work packages live in [shipledger-platform](https://github.com/kacxx/shipledger-platform). Shipledger is the Proof layer (plus claim schema).
+
 You give shipledger a claimed changeset — a tracker release, a GitHub milestone,
 whatever you use — and the git ranges it should correspond to, across as many
 repositories as the release spans. It reports where the claim and git disagree:
