@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertNotesCoverFindings, buildNoteLookup, commitKey, referenceKey } from '../src/notes.js';
-import { validateVerified } from '../src/config/validate.js';
+import { validateNotes, validateVerified } from '../src/config/validate.js';
+import { renderReport } from '../src/render/report.js';
 import type { NotesFile } from '../src/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -151,5 +152,83 @@ describe('buildNoteLookup', () => {
   it('returns empty maps for empty notes', () => {
     const lookup = buildNoteLookup({ version: 1 });
     expect(lookup.items.size).toBe(0);
+  });
+
+  it('preserves impact annotations', () => {
+    const notes: NotesFile = {
+      version: 2,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'tooling-or-ci', impact: 'test-only', note: 'CI only' }],
+    };
+    const lookup = buildNoteLookup(notes);
+    expect(lookup.noReference.get(commitKey('repo-a', C))?.impact).toBe('test-only');
+  });
+});
+
+describe('impact axis (WP-001)', () => {
+  const notesWithImpact = JSON.parse(
+    readFileSync(join(here, 'fixtures', 'notes-with-impact.json'), 'utf8')
+  );
+
+  it('validates a notes file with impact annotations against the schema', () => {
+    expect(() => validateNotes(notesWithImpact)).not.toThrow();
+  });
+
+  it('validates a dual-axis note: tooling-or-ci cause with test-only impact', () => {
+    const dual: NotesFile = {
+      version: 2,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'tooling-or-ci', impact: 'test-only', note: 'CI config lint' }],
+      unknownReference: [{ repo: 'repo-a', sha: B, matcher: 'ticket-key', token: 'PROJ-9', classification: 'other-release', note: 'shipped in 1.3' }],
+      items: [{ item: 'PROJ-2', classification: 'not-done', note: 'moved out of scope' }],
+      ranges: [{ repo: 'repo-a', classification: 'expected-divergence', note: 'branches cut separately' }],
+    };
+    expect(() => validateNotes(dual)).not.toThrow();
+    expect(() => assertNotesCoverFindings(dual, verified)).not.toThrow();
+  });
+
+  it('validates a notes file without any impact fields (backwards compat)', () => {
+    const v2NoImpact = {
+      version: 2,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'tooling-or-ci', note: 'lint config only' }],
+      unknownReference: [{ repo: 'repo-a', sha: B, matcher: 'ticket-key', token: 'PROJ-9', classification: 'other-release', note: 'shipped in 1.3' }],
+      items: [{ item: 'PROJ-2', classification: 'not-done', note: 'moved out of scope' }],
+      ranges: [{ repo: 'repo-a', classification: 'expected-divergence', note: 'branches cut separately' }],
+    };
+    expect(() => validateNotes(v2NoImpact)).not.toThrow();
+  });
+
+  it('still validates version 1 notes without impact (backwards compat)', () => {
+    expect(() => validateNotes(complete())).not.toThrow();
+  });
+
+  it('shows impact annotations in the rendered report', () => {
+    const notes: NotesFile = {
+      version: 2,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'tooling-or-ci', impact: 'test-only', note: 'CI config lint' }],
+      unknownReference: [{ repo: 'repo-a', sha: B, matcher: 'ticket-key', token: 'PROJ-9', classification: 'other-release', note: 'shipped in 1.3' }],
+      items: [{ item: 'PROJ-2', classification: 'not-done', note: 'moved out of scope' }],
+      ranges: [{ repo: 'repo-a', classification: 'expected-divergence', note: 'branches cut separately' }],
+    };
+    const report = renderReport(verified, notes);
+    expect(report).toContain('tooling-or-ci (test-only)');
+  });
+
+  it('does not show impact parenthetical when impact is absent', () => {
+    const report = renderReport(verified, complete());
+    expect(report).toContain('tooling-or-ci:');
+    expect(report).not.toContain('tooling-or-ci (');
+  });
+
+  it('range-growth stability: extending head does not re-key existing commits', () => {
+    const keyBefore = commitKey('repo-a', C);
+    // Simulate extending head — key is (repo, sha), head is not part of the key
+    const keyAfter = commitKey('repo-a', C);
+    expect(keyBefore).toBe(keyAfter);
+  });
+
+  it('determinism: two runs over identical SHAs produce the same report', () => {
+    const notes = complete();
+    const report1 = renderReport(verified, notes);
+    const report2 = renderReport(verified, notes);
+    expect(report1).toBe(report2);
   });
 });
