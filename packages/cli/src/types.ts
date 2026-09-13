@@ -196,15 +196,19 @@ export const ITEM_CLASSIFICATIONS = [
 ] as const;
 export const RANGE_CLASSIFICATIONS = ['expected-divergence', 'wrong-base'] as const;
 
+export const IMPACT_VALUES = ['test-only', 'no-runtime-impact'] as const;
+
 export type NoReferenceClassification = (typeof NO_REFERENCE_CLASSIFICATIONS)[number];
 export type UnknownReferenceClassification = (typeof UNKNOWN_REFERENCE_CLASSIFICATIONS)[number];
 export type ItemClassification = (typeof ITEM_CLASSIFICATIONS)[number];
 export type RangeClassification = (typeof RANGE_CLASSIFICATIONS)[number];
+export type Impact = (typeof IMPACT_VALUES)[number];
 
 export interface NoReferenceNote {
   repo: string;
   sha: string;
   classification: NoReferenceClassification;
+  impact?: Impact;
   note: string;
 }
 
@@ -214,23 +218,26 @@ export interface UnknownReferenceNote {
   matcher: string;
   token: string;
   classification: UnknownReferenceClassification;
+  impact?: Impact;
   note: string;
 }
 
 export interface ItemNote {
   item: string;
   classification: ItemClassification;
+  impact?: Impact;
   note: string;
 }
 
 export interface RangeNote {
   repo: string;
   classification: RangeClassification;
+  impact?: Impact;
   note: string;
 }
 
 export interface NotesFile {
-  version: 1;
+  version: 1 | 2;
   noReference?: NoReferenceNote[];
   unknownReference?: UnknownReferenceNote[];
   items?: ItemNote[];

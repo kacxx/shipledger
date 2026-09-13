@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "noReference": [
+    { "repo": "repo-a", "sha": "cccccccccccccccccccccccccccccccccccccccc", "classification": "tooling-or-ci", "impact": "test-only", "note": "CI config lint — tests only, no runtime change" }
+  ],
+  "unknownReference": [
+    { "repo": "repo-a", "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "matcher": "ticket-key", "token": "PROJ-9", "classification": "other-release", "note": "shipped in 1.3" }
+  ],
+  "items": [
+    { "item": "PROJ-2", "classification": "not-done", "note": "moved out of scope" }
+  ],
+  "ranges": [
+    { "repo": "repo-a", "classification": "expected-divergence", "note": "branches cut separately" }
+  ]
+}

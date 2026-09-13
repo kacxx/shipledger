@@ -9,7 +9,7 @@
   "additionalProperties": false,
   "required": ["version"],
   "properties": {
-    "version": { "const": 1 },
+    "version": { "enum": [1, 2] },
     "noReference": {
       "type": "array",
       "items": {
@@ -20,6 +20,7 @@
           "repo": { "type": "string", "minLength": 1 },
           "sha": { "$ref": "#/definitions/sha" },
           "classification": { "enum": ["revert", "dependency-bump", "hotfix-already-released", "tooling-or-ci", "process-miss"] },
+          "impact": { "enum": ["test-only", "no-runtime-impact"] },
           "note": { "$ref": "#/definitions/note" }
         }
       }
@@ -36,6 +37,7 @@
           "matcher": { "type": "string", "minLength": 1 },
           "token": { "type": "string", "minLength": 1 },
           "classification": { "enum": ["other-release", "typo", "wrongly-omitted"] },
+          "impact": { "enum": ["test-only", "no-runtime-impact"] },
           "note": { "$ref": "#/definitions/note" }
         }
       }
@@ -49,6 +51,7 @@
         "properties": {
           "item": { "type": "string", "minLength": 1 },
           "classification": { "enum": ["configuration-only", "documentation-only", "landed-earlier", "wrongly-tagged", "not-done"] },
+          "impact": { "enum": ["test-only", "no-runtime-impact"] },
           "note": { "$ref": "#/definitions/note" }
         }
       }
@@ -62,9 +65,21 @@
         "properties": {
           "repo": { "type": "string", "minLength": 1 },
           "classification": { "enum": ["expected-divergence", "wrong-base"] },
+          "impact": { "enum": ["test-only", "no-runtime-impact"] },
           "note": { "$ref": "#/definitions/note" }
         }
       }
+    }
+  },
+  "if": {
+    "properties": { "version": { "const": 1 } }
+  },
+  "then": {
+    "properties": {
+      "noReference": { "type": "array", "items": { "type": "object", "properties": { "impact": false } } },
+      "unknownReference": { "type": "array", "items": { "type": "object", "properties": { "impact": false } } },
+      "items": { "type": "array", "items": { "type": "object", "properties": { "impact": false } } },
+      "ranges": { "type": "array", "items": { "type": "object", "properties": { "impact": false } } }
     }
   }
 }

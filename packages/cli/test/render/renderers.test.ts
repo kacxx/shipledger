@@ -862,6 +862,14 @@ describe('renderChangelog', () => {
   it('carries note classifications through', () => {
     expect(renderChangelog(verified, notes)).toMatch(/other-release/);
   });
+  it('carries impact annotations through alongside the classification', () => {
+    const withImpact: NotesFile = {
+      ...notes,
+      version: 2,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'tooling-or-ci', impact: 'test-only', note: 'lint config only' }],
+    };
+    expect(renderChangelog(verified, withImpact)).toMatch(/tooling-or-ci \(test-only\)/);
+  });
   it('records the fingerprint for traceability', () => {
     expect(renderChangelog(verified)).toMatch(/sha256:0{64}/);
   });

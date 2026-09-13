@@ -102,8 +102,13 @@ function linkedRefToken(
   return dest ? `[${mdEscape(token)}](${dest})` : mdEscape(token);
 }
 
-function noteSuffix(entry: { classification: string; note: string } | undefined): string {
-  return entry ? ` ${mdEscape(entry.classification)}: ${mdEscape(entry.note)}` : '';
+function classificationCell(entry: { classification: string; impact?: string }): string {
+  return `${mdEscape(entry.classification)}${entry.impact ? ` (${mdEscape(entry.impact)})` : ''}`;
+}
+
+function noteSuffix(entry: { classification: string; impact?: string; note: string } | undefined): string {
+  if (!entry) return '';
+  return ` ${classificationCell(entry)}: ${mdEscape(entry.note)}`;
 }
 
 function commitRow(
@@ -252,7 +257,9 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
       : '—';
     const finding = item.findings.includes('item-without-commits') ? 'item\\-without\\-commits' : '—';
     const itemNote = lookup.items.get(item.id);
-    const triage = itemNote ? `${mdEscape(itemNote.classification)}: ${mdEscape(itemNote.note)}` : '—';
+    const triage = itemNote
+      ? `${classificationCell(itemNote)}: ${mdEscape(itemNote.note)}`
+      : '—';
     const idCell = linkedItemId(item.id, itemUrls);
 
     out.push(`| ${idCell} | ${mdEscape(item.title)} | ${mdEscape(item.type)} | ${mdEscape(item.status)} | ${commitList} | ${finding} | ${triage} |`);
@@ -299,12 +306,14 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
         if (unresolved.length > 0) {
           for (const r of unresolved) {
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
+            const cls = entry ? classificationCell(entry) : '—';
+            out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${cls} | ${entry ? mdEscape(entry.note) : '—'} |`);
           }
         }
         if (c.findings.includes('no-reference')) {
           const entry = lookup.noReference.get(commitKey(c.repo, c.sha));
-          out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | — | — | ${entry ? mdEscape(entry.classification) : '—'} | ${entry ? mdEscape(entry.note) : '—'} |`);
+          const nrCls = entry ? classificationCell(entry) : '—';
+          out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | — | — | ${nrCls} | ${entry ? mdEscape(entry.note) : '—'} |`);
         }
       }
       out.push('');

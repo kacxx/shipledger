@@ -1,6 +1,10 @@
 import { buildNoteLookup, commitKey, referenceKey } from '../notes.js';
 import type { NotesFile, VerifiedChangeset } from '../types.js';
 
+function classificationLabel(n: { classification: string; impact?: string }): string {
+  return n.impact ? `${n.classification} (${n.impact})` : n.classification;
+}
+
 export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile): string {
   const lookup = buildNoteLookup(notes ?? { version: 1 });
   const out: string[] = [`# ${verified.changeset.id}`, ''];
@@ -25,9 +29,9 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
       const dispositions = unresolved
         .map((r) => lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token)))
         .filter((n): n is NonNullable<typeof n> => Boolean(n))
-        .map((n) => n.classification);
+        .map((n) => classificationLabel(n));
       const bare = lookup.noReference.get(commitKey(c.repo, c.sha));
-      const tags = [...dispositions, ...(bare ? [bare.classification] : [])];
+      const tags = [...dispositions, ...(bare ? [classificationLabel(bare)] : [])];
       const refs = unresolved.length > 0 ? ` (refs ${unresolved.map((r) => r.token).join(', ')})` : '';
       out.push(`- \`${c.repo} ${c.sha.slice(0, 8)}\` ${c.subject}${refs}${tags.length > 0 ? ` — ${tags.join(', ')}` : ''}`);
     }
@@ -39,7 +43,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Claimed but not found in git', '');
     for (const i of orphans) {
       const note = lookup.items.get(i.id);
-      out.push(`- **${i.id}** ${i.title}${i.status ? ` [${i.status}]` : ''}${note ? ` — ${note.classification}` : ''}`);
+      out.push(`- **${i.id}** ${i.title}${i.status ? ` [${i.status}]` : ''}${note ? ` — ${classificationLabel(note)}` : ''}`);
     }
     out.push('');
   }
@@ -49,7 +53,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Incomplete ranges', '');
     for (const r of diverged) {
       const note = lookup.ranges.get(r.repo);
-      out.push(`- \`${r.repo}\` ${r.base}..${r.head} — ${r.commitsOnlyInBase} commit(s) only in base are not represented${note ? ` — ${note.classification}` : ''}`);
+      out.push(`- \`${r.repo}\` ${r.base}..${r.head} — ${r.commitsOnlyInBase} commit(s) only in base are not represented${note ? ` — ${classificationLabel(note)}` : ''}`);
     }
     out.push('');
   }
