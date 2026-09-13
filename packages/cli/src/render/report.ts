@@ -102,11 +102,13 @@ function linkedRefToken(
   return dest ? `[${mdEscape(token)}](${dest})` : mdEscape(token);
 }
 
+function classificationCell(entry: { classification: string; impact?: string }): string {
+  return `${mdEscape(entry.classification)}${entry.impact ? ` (${mdEscape(entry.impact)})` : ''}`;
+}
+
 function noteSuffix(entry: { classification: string; impact?: string; note: string } | undefined): string {
   if (!entry) return '';
-  const cls = mdEscape(entry.classification);
-  const imp = entry.impact ? ` (${mdEscape(entry.impact)})` : '';
-  return ` ${cls}${imp}: ${mdEscape(entry.note)}`;
+  return ` ${classificationCell(entry)}: ${mdEscape(entry.note)}`;
 }
 
 function commitRow(
@@ -256,7 +258,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
     const finding = item.findings.includes('item-without-commits') ? 'item\\-without\\-commits' : '—';
     const itemNote = lookup.items.get(item.id);
     const triage = itemNote
-      ? `${mdEscape(itemNote.classification)}${itemNote.impact ? ` (${mdEscape(itemNote.impact)})` : ''}: ${mdEscape(itemNote.note)}`
+      ? `${classificationCell(itemNote)}: ${mdEscape(itemNote.note)}`
       : '—';
     const idCell = linkedItemId(item.id, itemUrls);
 
@@ -304,13 +306,13 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
         if (unresolved.length > 0) {
           for (const r of unresolved) {
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            const cls = entry ? `${mdEscape(entry.classification)}${entry.impact ? ` (${mdEscape(entry.impact)})` : ''}` : '—';
+            const cls = entry ? classificationCell(entry) : '—';
             out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${cls} | ${entry ? mdEscape(entry.note) : '—'} |`);
           }
         }
         if (c.findings.includes('no-reference')) {
           const entry = lookup.noReference.get(commitKey(c.repo, c.sha));
-          const nrCls = entry ? `${mdEscape(entry.classification)}${entry.impact ? ` (${mdEscape(entry.impact)})` : ''}` : '—';
+          const nrCls = entry ? classificationCell(entry) : '—';
           out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | — | — | ${nrCls} | ${entry ? mdEscape(entry.note) : '—'} |`);
         }
       }

@@ -218,17 +218,64 @@ describe('impact axis (WP-001)', () => {
     expect(report).not.toContain('tooling-or-ci (');
   });
 
-  it('range-growth stability: extending head does not re-key existing commits', () => {
-    const keyBefore = commitKey('repo-a', C);
-    // Simulate extending head — key is (repo, sha), head is not part of the key
-    const keyAfter = commitKey('repo-a', C);
-    expect(keyBefore).toBe(keyAfter);
+  it('range-growth stability: extending head does not re-key existing triage', () => {
+    const notes = complete();
+    // C's no-reference triage resolves against the original changeset.
+    expect(renderReport(verified, notes)).toContain('tooling-or-ci');
+
+    // Grow the changeset with an extra commit, as if head advanced. A commit's
+    // key is (repo, sha) only, so C's existing note must still resolve — if the
+    // key ever incorporated range/head state, this triage would silently drop.
+    const grown = {
+      ...verified,
+      commits: [
+        ...verified.commits,
+        { ...verified.commits.find((c) => c.sha === A)!, sha: 'f'.repeat(40) },
+      ],
+    };
+    expect(renderReport(grown, notes)).toContain('tooling-or-ci');
   });
 
-  it('determinism: two runs over identical SHAs produce the same report', () => {
-    const notes = complete();
-    const report1 = renderReport(verified, notes);
-    const report2 = renderReport(verified, notes);
-    expect(report1).toBe(report2);
+  it('determinism: triage-note ordering does not change the report', () => {
+    const E = 'e'.repeat(40);
+    const twoBare = {
+      ...verified,
+      commits: [
+        ...verified.commits,
+        { ...verified.commits.find((c) => c.sha === C)!, sha: E },
+      ],
+    };
+    // Two no-reference findings, both triaged. The renderer keys notes by
+    // (repo, sha), so the order of the noReference array must not affect output.
+    const forward: NotesFile = {
+      ...complete(),
+      noReference: [
+        { repo: 'repo-a', sha: C, classification: 'tooling-or-ci', note: 'first' },
+        { repo: 'repo-a', sha: E, classification: 'revert', note: 'second' },
+      ],
+    };
+    const reversed: NotesFile = {
+      ...forward,
+      noReference: [...forward.noReference!].reverse(),
+    };
+    expect(renderReport(twoBare, forward)).toBe(renderReport(twoBare, reversed));
+  });
+});
+
+describe('schema gates impact to version 2', () => {
+  it('rejects impact on a version 1 notes file', () => {
+    const v1WithImpact = {
+      version: 1,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'tooling-or-ci', impact: 'test-only', note: 'CI only' }],
+    };
+    expect(() => validateNotes(v1WithImpact)).toThrow();
+  });
+
+  it('accepts impact on a version 2 notes file', () => {
+    const v2WithImpact = {
+      version: 2,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'tooling-or-ci', impact: 'test-only', note: 'CI only' }],
+    };
+    expect(() => validateNotes(v2WithImpact)).not.toThrow();
   });
 });

@@ -70,5 +70,16 @@
         }
       }
     }
+  },
+  "if": {
+    "properties": { "version": { "const": 1 } }
+  },
+  "then": {
+    "properties": {
+      "noReference": { "type": "array", "items": { "type": "object", "properties": { "impact": false } } },
+      "unknownReference": { "type": "array", "items": { "type": "object", "properties": { "impact": false } } },
+      "items": { "type": "array", "items": { "type": "object", "properties": { "impact": false } } },
+      "ranges": { "type": "array", "items": { "type": "object", "properties": { "impact": false } } }
+    }
   }
 }
