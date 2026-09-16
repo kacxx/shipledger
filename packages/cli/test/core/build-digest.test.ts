@@ -116,6 +116,24 @@ describe('computeBuildDigest (manifest v1)', () => {
     const bin = (JSON.parse(readFileSync(pkgPath, 'utf8')) as { bin: { shipledger: string } }).bin.shipledger;
     expect(bin).toBe(`./${REQUIRED_ENTRY}`);
   });
+
+  it('is polluted by a stale artifact left in dist/ (why the build must clean dist)', () => {
+    // tsc does not remove outputs for deleted/renamed sources, so a build that
+    // does not clean dist/ can hash a stale file into the "authoritative" identity
+    // and diverge from a fresh CI build. This locks that hazard: a leftover file
+    // DOES change the digest, so the build script must clean dist/ (asserted below).
+    const clean = computeBuildDigest(makeRoot(base)).digest;
+    const polluted = computeBuildDigest(makeRoot({ ...base, 'dist/core/__stale_removed__.js': '// leftover\n' })).digest;
+    expect(polluted).not.toBe(clean);
+  });
+
+  it('the build script cleans dist/ before tsc', () => {
+    const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
+    const scripts = (JSON.parse(readFileSync(pkgPath, 'utf8')) as { scripts: Record<string, string> }).scripts;
+    expect(scripts.clean).toMatch(/rmSync\('dist'/);
+    // clean must run before tsc so no stale output survives into the digest.
+    expect(scripts.build).toMatch(/^npm run clean &&.*tsc/);
+  });
 });
 
 describe('manifestV1Digest canonicalisation', () => {
