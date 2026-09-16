@@ -28,7 +28,7 @@
     "vitest": "^2.1.0"
   },
   "scripts": {
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true,maxRetries:10})\"",
     "build": "npm run clean && node scripts/write-build-info.mjs && tsc -p tsconfig.json",
     "lint": "eslint . --max-warnings 0",
     "prepack": "npm run build",
