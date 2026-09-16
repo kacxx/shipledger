@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { CLI_VERSION } from './version.js';
-import { computeBuildDigest, DIGEST_ALGORITHM, DIGEST_MANIFEST_VERSION } from '../core/build-digest.js';
-
-// dist/cli/identity.js -> package root is two levels up (mirrors version.ts).
-const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+import { PACKAGE_ROOT } from '../core/package-root.js';
+import { isGitOid } from '../core/git-oid.js';
+import {
+  BuildDigestError,
+  computeBuildDigest,
+  DIGEST_ALGORITHM,
+  DIGEST_MANIFEST_VERSION,
+} from '../core/build-digest.js';
 
 export interface IdentityReport {
   readonly schemaVersion: 1;
@@ -15,11 +18,12 @@ export interface IdentityReport {
    * the build had no git context. This is SOURCE-TRACEABILITY METADATA only: it
    * is self-reported by the build and is NOT independently verified. Consumers
    * must not treat it as verified provenance unless they check it against a
-   * trusted source.
+   * trusted source. Accepts both Git object formats (40-hex SHA-1, 64-hex SHA-256).
    */
   readonly commit: string | null;
   /**
-   * The authoritative, independently reproducible identity of the runtime bytes.
+   * The authoritative, independently reproducible identity of the immutable
+   * published build content (see core/build-digest.ts).
    */
   readonly build: {
     readonly algorithm: string;
@@ -33,7 +37,7 @@ function readBuildCommit(root: string): string | null {
   try {
     const raw: unknown = JSON.parse(readFileSync(join(root, 'build-info.json'), 'utf8'));
     const commit = (raw as { commit?: unknown }).commit;
-    return typeof commit === 'string' && /^[0-9a-f]{40}$/.test(commit) ? commit : null;
+    return isGitOid(commit) ? commit : null;
   } catch {
     return null;
   }
@@ -54,8 +58,22 @@ export function identityReport(packageRoot: string = PACKAGE_ROOT): IdentityRepo
   };
 }
 
-export function runIdentity(_argv: string[]): number {
-  process.stdout.write(`${JSON.stringify(identityReport())}\n`);
+export function runIdentity(_argv: string[], packageRoot: string = PACKAGE_ROOT): number {
+  let report: IdentityReport;
+  try {
+    report = identityReport(packageRoot);
+  } catch (err) {
+    // A build that cannot be measured into a trustworthy identity must fail
+    // closed with a controlled non-zero exit, never crash with a stack trace or
+    // emit a valid-looking report. Exit 3 = environment problem (see cli/index.ts).
+    if (err instanceof BuildDigestError) {
+      process.stderr.write(`shipledger identity: ${err.message}\n`);
+      return 3;
+    }
+    process.stderr.write(`shipledger identity: unexpected error: ${String(err)}\n`);
+    return 3;
+  }
+  process.stdout.write(`${JSON.stringify(report)}\n`);
   return 0;
 }
 

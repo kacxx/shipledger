@@ -34,8 +34,14 @@ describe('identityReport', () => {
     expect(r.build.fileCount).toBe(2);
   });
 
-  it('reads a valid embedded commit as source-traceability metadata', () => {
+  it('reads a valid 40-hex (SHA-1) embedded commit as source-traceability metadata', () => {
     const commit = 'a'.repeat(40);
+    expect(identityReport(makeRoot(`{"commit":"${commit}"}`)).commit).toBe(commit);
+  });
+
+  it('reads a valid 64-hex (SHA-256) embedded commit', () => {
+    // git object-format repos emit 64-hex OIDs; these must not be silently dropped.
+    const commit = 'a'.repeat(64);
     expect(identityReport(makeRoot(`{"commit":"${commit}"}`)).commit).toBe(commit);
   });
 
@@ -43,10 +49,12 @@ describe('identityReport', () => {
     expect(identityReport(makeRoot()).commit).toBeNull();
   });
 
-  it('reports commit=null when build-info.json is malformed or not a 40-hex sha', () => {
+  it('reports commit=null when build-info.json is malformed or not a valid OID length', () => {
     expect(identityReport(makeRoot('not json')).commit).toBeNull();
     expect(identityReport(makeRoot('{"commit":"nope"}')).commit).toBeNull();
     expect(identityReport(makeRoot('{"commit":null}')).commit).toBeNull();
+    expect(identityReport(makeRoot(`{"commit":"${'a'.repeat(39)}"}`)).commit).toBeNull();
+    expect(identityReport(makeRoot(`{"commit":"${'a'.repeat(50)}"}`)).commit).toBeNull();
   });
 
   it('runIdentity writes a single JSON line to stdout and returns 0', () => {
@@ -55,11 +63,25 @@ describe('identityReport', () => {
       writes.push(chunk.toString());
       return true;
     });
-    const code = runIdentity([]);
+    const code = runIdentity([], makeRoot(`{"commit":"${'a'.repeat(40)}"}`));
     expect(code).toBe(0);
     expect(writes).toHaveLength(1);
     const parsed = JSON.parse(writes[0]);
     expect(parsed.schemaVersion).toBe(1);
     expect(parsed.build.digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+  });
+
+  it('runIdentity fails closed on a broken build: exit 3, controlled stderr, no stdout report', () => {
+    const outs: string[] = [];
+    const errs: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((c: string | Uint8Array) => { outs.push(c.toString()); return true; });
+    vi.spyOn(process.stderr, 'write').mockImplementation((c: string | Uint8Array) => { errs.push(c.toString()); return true; });
+    // A root with no dist/ bin entry cannot be measured into a trustworthy identity.
+    const broken = mkdtempSync(join(tmpdir(), 'shipledger-identity-broken-'));
+    roots.push(broken);
+    const code = runIdentity([], broken);
+    expect(code).toBe(3);
+    expect(outs).toHaveLength(0);
+    expect(errs.join('')).toMatch(/shipledger identity:/);
   });
 });

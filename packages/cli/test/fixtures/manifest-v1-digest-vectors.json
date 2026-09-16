@@ -1,0 +1,63 @@
+{
+  "manifestVersion": "1",
+  "algorithm": "sha256",
+  "description": "Fixed cross-implementation test vectors for the manifest-v1 build-digest canonicalisation, shared byte-for-byte by shipledger (producer) and shipledger-release-control (independent consumer). Each vector's `entries` are [packageRelativePosixPath, sha256HexOfFileContent] pairs that have ALREADY been content-hashed, isolating the canonicalisation contract. A conforming implementation MUST: (1) order entries by the UTF-8 byte sequence of the path (== Unicode code-point order, NOT UTF-16 code-unit order); (2) serialise the ordered array of [path, hash] pairs with RFC 8785 (JCS) — for this all-string data identical to compact JSON; (3) return `sha256:` + lowercaseHex(sha256(utf8Bytes(serialisation))). The `canonical` field is the exact serialised string that is hashed. NOTE: the empty-set vector documents the canonical form only; the production computeBuildDigest fails closed on an empty/incomplete build rather than emitting this digest.",
+  "vectors": [
+    {
+      "name": "empty-set",
+      "entries": [],
+      "canonical": "[]",
+      "digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "name": "single-entry",
+      "entries": [
+        [
+          "dist/cli/index.js",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      ],
+      "canonical": "[[\"dist/cli/index.js\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"]]",
+      "digest": "sha256:3bbca6f981fc29f8de71fe658e888e913420ecbc5c93bc5bebf973c6c0b81461"
+    },
+    {
+      "name": "three-ascii-unsorted-input",
+      "entries": [
+        [
+          "schemas/s.json",
+          "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        [
+          "dist/cli/index.js",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ],
+        [
+          "dist/core/x.js",
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ]
+      ],
+      "canonical": "[[\"dist/cli/index.js\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"],[\"dist/core/x.js\",\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"],[\"schemas/s.json\",\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"]]",
+      "digest": "sha256:165a112b7301198e3b5879e3d005ea9a60eb68b401d78a196c1a5b1ef96e19be"
+    },
+    {
+      "name": "non-ascii-ordering",
+      "note": "Locks UTF-8-byte path ordering: BMP U+FFFD sorts BEFORE astral U+10000 by UTF-8 bytes, whereas a naive JavaScript string `<` (UTF-16 code units) would sort them the other way. A consumer that sorts by code unit computes a different digest and MUST fail this vector.",
+      "entries": [
+        [
+          "dist/𐀀.js",
+          "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        ],
+        [
+          "dist/�.js",
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ],
+        [
+          "dist/a.js",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      ],
+      "canonical": "[[\"dist/a.js\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"],[\"dist/�.js\",\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"],[\"dist/𐀀.js\",\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"]]",
+      "digest": "sha256:566f2f3c62c5e0641896e48cecf303719f1d9dd37aeb8e67eaa64b6fd8d20c45"
+    }
+  ]
+}

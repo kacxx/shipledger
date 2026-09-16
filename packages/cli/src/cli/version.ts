@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
+import { PACKAGE_ROOT } from '../core/package-root.js';
 
-const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
+const pkgPath = join(PACKAGE_ROOT, 'package.json');
 export const CLI_VERSION: string = JSON.parse(readFileSync(pkgPath, 'utf8')).version;
