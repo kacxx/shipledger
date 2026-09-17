@@ -4,9 +4,15 @@ on:
   pull_request:
   push:
     branches: [main]
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 jobs:
   scan-files:
@@ -14,8 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run genericity scanner
+      - name: Run genericity scanner on full tree
         run: bash scripts/genericity-check.sh
+      - name: Run scanner self-tests
+        run: bash scripts/genericity-check.test.sh
 
   scan-pr-diff:
     name: scan PR diff
@@ -34,6 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Check PR title and body
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -43,3 +53,58 @@ jobs:
           printf '%s\n' "$PR_TITLE" | bash scripts/genericity-check.sh --stdin "PR-title" || rc=1
           printf '%s\n' "$PR_BODY"  | bash scripts/genericity-check.sh --stdin "PR-body"  || rc=1
           exit $rc
+
+  scan-pr-commits:
+    name: scan PR commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check commit messages in this PR
+        run: |
+          rc=0
+          git log --format='%s%n%b' "origin/${{ github.base_ref }}..HEAD" \
+            | bash scripts/genericity-check.sh --stdin "PR-commit-messages" || rc=1
+          exit $rc
+
+  scan-branch-name:
+    name: scan branch name
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          printf '%s\n' "$BRANCH" | bash scripts/genericity-check.sh --stdin "branch-name"
+
+  scan-issue:
+    name: scan issue metadata
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check issue title and body
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          rc=0
+          printf '%s\n' "$ISSUE_TITLE" | bash scripts/genericity-check.sh --stdin "issue-title" || rc=1
+          printf '%s\n' "$ISSUE_BODY"  | bash scripts/genericity-check.sh --stdin "issue-body"  || rc=1
+          exit $rc
+
+  scan-issue-comment:
+    name: scan issue comment
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check comment body
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          printf '%s\n' "$COMMENT_BODY" | bash scripts/genericity-check.sh --stdin "issue-comment"

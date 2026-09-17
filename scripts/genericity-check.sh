@@ -22,6 +22,8 @@ if [ -n "${GENERICITY_EXTRA_SAFE_KEYS:-}" ]; then
 fi
 
 SAFE_DEV_USERS="alice|bob|ci|test|example|runner|actions|user"
+SAFE_GITHUB_ORGS="kacxx/shipledger|example/|acme/|org/|other/|elsewhere/|actions/|github/"
+SAFE_GITHUB_WELLKNOWN="nodejs|npm/|isaacs|sindresorhus|epoberezkin|fastify|ajv-validator|eslint|vitest-dev|microsoft|jestjs|chaijs|mochajs|typescriptlang|chalk|yargs|DefinitelyTyped|sponsors|prettier|rollup|vitejs|facebook|vercel|lukeed|ljharb|es-shims|gulpjs|mdn|tc39|web-infra-dev|unjs|antfu|pnpm|webdriverio|standard|feross|substack|browserify|gruntjs|karma-runner|postcss|babel|webpack|lodash|expressjs|koajs|hapijs|angular|sveltejs|vuejs|remix-run|nextjs"
 
 SKIP_FILES_RE='(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|\.tmp/|node_modules/|dist/|\.git/)'
 
@@ -30,60 +32,105 @@ SKIP_FILES_RE='(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|\.tmp/|node_m
 fails=0
 scanned=0
 
-# ---- core ----
+# ---- helpers ----
 
 report_hit() {
   printf 'FAIL  [%s]  %s:%s\n' "$1" "$2" "$3"
   fails=$((fails + 1))
 }
 
+# Validate R5 patterns eagerly: an invalid regex must fail closed.
+validate_deny_patterns() {
+  if [ -z "${GENERICITY_DENY_PATTERNS:-}" ]; then
+    return 0
+  fi
+  local bad=0
+  while IFS= read -r pat; do
+    [ -z "$pat" ] && continue
+    if ! printf '' | grep -iE "$pat" >/dev/null 2>&1; then
+      printf 'ERROR  [R5-deny-pattern]  invalid regex: (pattern not printed)\n'
+      bad=1
+    fi
+  done <<< "$GENERICITY_DENY_PATTERNS"
+  if [ "$bad" -ne 0 ]; then
+    printf 'FATAL  invalid GENERICITY_DENY_PATTERNS — failing closed\n'
+    exit 1
+  fi
+}
+
+# ---- per-rule file scanning (per-token validation) ----
+
 scan_content() {
   local file="$1"
   local target="${2:-$file}"
 
-  # R1: tracker URLs
+  # R1: tracker URLs — extract each URL token, check independently
   while IFS= read -r match; do
     [ -z "$match" ] && continue
     local lineno="${match%%:*}"
     local line="${match#*:}"
-    if ! printf '%s' "$line" | grep -qiE 'https?://example\.(atlassian\.net|shortcut\.com|dev\.azure\.com|youtrack\.[a-z]+)'; then
-      report_hit "R1-tracker-url" "$file" "$lineno"
-    fi
-  done < <(grep -niE 'https?://[a-z0-9._-]*\.(atlassian\.net|shortcut\.com|dev\.azure\.com|youtrack\.[a-z]+)|https?://linear\.app/' "$target" 2>/dev/null || true)
-
-  # R2: ticket keys
-  while IFS= read -r match; do
-    [ -z "$match" ] && continue
-    local lineno="${match%%:*}"
-    local line="${match#*:}"
-    if ! printf '%s' "$line" | grep -qiE "\b(${SAFE_KEY_PREFIXES})-[0-9]{1,6}\b"; then
-      if ! printf '%s' "$line" | grep -qE 'SAFE_KEY_PREFIXES|safe.key|safe.prefix|product.namespace|GENERICITY'; then
-        report_hit "R2-ticket-key" "$file" "$lineno"
+    local urls
+    urls=$(printf '%s' "$line" | grep -oiE 'https?://[a-z0-9._-]*\.(atlassian\.net|shortcut\.com|dev\.azure\.com|youtrack\.[a-z]+)[^ ]*|https?://linear\.app/[^ ]*' 2>/dev/null || true)
+    while IFS= read -r url; do
+      [ -z "$url" ] && continue
+      if ! printf '%s' "$url" | grep -qiE '://example\.(atlassian\.net|shortcut\.com|dev\.azure\.com|youtrack\.[a-z]+)'; then
+        report_hit "R1-tracker-url" "$file" "$lineno"
+        break
       fi
+    done <<< "$urls"
+  done < <(grep -niE 'atlassian\.net|shortcut\.com|dev\.azure\.com|youtrack\.|linear\.app/' "$target" 2>/dev/null || true)
+
+  # R2: ticket keys — extract each token, check independently
+  while IFS= read -r match; do
+    [ -z "$match" ] && continue
+    local lineno="${match%%:*}"
+    local line="${match#*:}"
+    # Skip self-referential lines
+    if printf '%s' "$line" | grep -qE 'SAFE_KEY_PREFIXES|safe.key|safe.prefix|product.namespace|GENERICITY'; then
+      continue
     fi
+    local keys
+    keys=$(printf '%s' "$line" | grep -oE '\b[A-Z]{2,10}-[0-9]{1,6}\b' 2>/dev/null || true)
+    while IFS= read -r key; do
+      [ -z "$key" ] && continue
+      if ! printf '%s' "$key" | grep -qiE "^(${SAFE_KEY_PREFIXES})-[0-9]{1,6}$"; then
+        report_hit "R2-ticket-key" "$file" "$lineno"
+        break
+      fi
+    done <<< "$keys"
   done < <(grep -nE '\b[A-Z]{2,10}-[0-9]{1,6}\b' "$target" 2>/dev/null || true)
 
-  # R3: absolute developer paths
+  # R3: developer paths — extract each path token, check independently
   while IFS= read -r match; do
     [ -z "$match" ] && continue
     local lineno="${match%%:*}"
     local line="${match#*:}"
-    if ! printf '%s' "$line" | grep -qiE "/(Users|home)/(${SAFE_DEV_USERS})/|\\\\Users\\\\(${SAFE_DEV_USERS})\\\\|/home/runner/"; then
-      report_hit "R3-dev-path" "$file" "$lineno"
-    fi
+    local paths
+    paths=$(printf '%s' "$line" | grep -oE '/Users/[a-zA-Z][a-zA-Z0-9._-]+/|/home/[a-zA-Z][a-zA-Z0-9._-]+/|[A-Z]:\\Users\\[a-zA-Z][a-zA-Z0-9._-]+\\' 2>/dev/null || true)
+    while IFS= read -r p; do
+      [ -z "$p" ] && continue
+      if ! printf '%s' "$p" | grep -qiE "/(Users|home)/(${SAFE_DEV_USERS})/|\\\\Users\\\\(${SAFE_DEV_USERS})\\\\|/home/runner/"; then
+        report_hit "R3-dev-path" "$file" "$lineno"
+        break
+      fi
+    done <<< "$paths"
   done < <(grep -nE '/Users/[a-zA-Z][a-zA-Z0-9._-]+/|/home/[a-zA-Z][a-zA-Z0-9._-]+/|[A-Z]:\\Users\\[a-zA-Z][a-zA-Z0-9._-]+\\' "$target" 2>/dev/null || true)
 
-  # R4: GitHub org/repo references (skip lockfiles entirely)
+  # R4: GitHub org/repo references — extract each ref, check independently
   if ! printf '%s' "$file" | grep -qE '(package-lock|pnpm-lock|yarn\.lock)'; then
-    local safe_gh="kacxx/shipledger|example/|acme/|org/|other/|elsewhere/|actions/|github/"
-    local wellknown="nodejs|npm/|isaacs|sindresorhus|epoberezkin|fastify|ajv-validator|eslint|vitest-dev|microsoft|jestjs|chaijs|mochajs|typescriptlang|chalk|yargs|DefinitelyTyped|sponsors|prettier|rollup|vitejs|facebook|vercel|lukeed|ljharb|es-shims|gulpjs|mdn|tc39|web-infra-dev|unjs|antfu|pnpm|webdriverio|standard|feross|substack|browserify|gruntjs|karma-runner|postcss|babel|webpack|lodash|expressjs|koajs|hapijs|angular|sveltejs|vuejs|remix-run|nextjs"
     while IFS= read -r match; do
       [ -z "$match" ] && continue
       local lineno="${match%%:*}"
       local line="${match#*:}"
-      if ! printf '%s' "$line" | grep -qiE "github\\.com/(${safe_gh}|${wellknown})"; then
-        report_hit "R4-org-repo-ref" "$file" "$lineno"
-      fi
+      local refs
+      refs=$(printf '%s' "$line" | grep -oE 'github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+' 2>/dev/null || true)
+      while IFS= read -r ref; do
+        [ -z "$ref" ] && continue
+        if ! printf '%s' "$ref" | grep -qiE "github\\.com/(${SAFE_GITHUB_ORGS}|${SAFE_GITHUB_WELLKNOWN})"; then
+          report_hit "R4-org-repo-ref" "$file" "$lineno"
+          break
+        fi
+      done <<< "$refs"
     done < <(grep -nE 'github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+' "$target" 2>/dev/null || true)
   fi
 
@@ -147,6 +194,8 @@ scan_stdin() {
 }
 
 # ---- main ----
+
+validate_deny_patterns
 
 printf '== genericity check ==\n'
 
