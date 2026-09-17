@@ -60,6 +60,9 @@ _pm1="/Users/re"                   ; _pm2="aldev/projects/thing"
 _pl1="/home/develo"                ; _pl2="per/.config/app"
 _pw1='C:\Users\re'                 ; _pw2='aldev\Documents\proj'
 _gh1="https://github.com/re"      ; _gh2="alcorp/private-service"
+_pc1="https://github.com/example"  ; _pc2="corp/private-service"
+_pc3="https://github.com/nodejs"   ; _pc4="evil/backdoor"
+_pc5="https://github.com/kacxx"    ; _pc6="leak/stolen-data"
 
 printf '== genericity-check tests ==\n\n'
 
@@ -115,6 +118,11 @@ assert_clean "R2-safe-DEMO" \
 # ---- R2: mixed safe + unsafe on same line ----
 assert_violation "R2-mixed-safe-unsafe" \
   "see PROJ-1 and also ${_tk1}${_tk2}${_tk3}" \
+  "R2-ticket-key"
+
+# ---- R2: regression — unsafe key hidden beside GENERICITY text ----
+assert_violation "R2-genericity-bypass-regression" \
+  "GENERICITY setting ${_tk1}${_tk2}${_tk3}" \
   "R2-ticket-key"
 
 # ---- R3: developer paths ----
@@ -175,6 +183,19 @@ assert_violation "R4-mixed-safe-unsafe" \
   "https://github.com/kacxx/shipledger and ${_gh1}${_gh2}" \
   "R4-org-repo-ref"
 
+# ---- R4: prefix-collision negative tests ----
+assert_violation "R4-prefix-collision-examplecorp" \
+  "${_pc1}${_pc2}" \
+  "R4-org-repo-ref"
+
+assert_violation "R4-prefix-collision-nodejsevil" \
+  "${_pc3}${_pc4}" \
+  "R4-org-repo-ref"
+
+assert_violation "R4-prefix-collision-kacxxleak" \
+  "${_pc5}${_pc6}" \
+  "R4-org-repo-ref"
+
 # ---- R5: private deny patterns ----
 _r5a="example"  ; _r5b="co-secret"
 GENERICITY_DENY_PATTERNS="${_r5a}${_r5b}" \
@@ -182,7 +203,8 @@ GENERICITY_DENY_PATTERNS="${_r5a}${_r5b}" \
   "mentions ${_r5a}${_r5b}-thing" \
   "R5-deny-pattern"
 
-assert_clean "R5-no-env-pattern" \
+GENERICITY_DENY_PATTERNS="" \
+  assert_clean "R5-no-env-pattern" \
   "mentions ${_r5a}${_r5b}-thing"
 
 # ---- R5: invalid regex fails closed ----

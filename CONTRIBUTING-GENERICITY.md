@@ -32,11 +32,12 @@ intentionally synthetic and will not trigger R2:
 Use these prefixes (or add new ones to the scanner) for examples and test
 fixtures.
 
-## Safe GitHub organizations
+## Safe GitHub owners
 
-References to these GitHub orgs/owners are allowed: `kacxx/shipledger*`,
-`example/`, `acme/`, `org/`, `other/`, `elsewhere/`, plus common open-source
-maintainer orgs.
+References to these GitHub owners are allowed (exact match, not prefix):
+`kacxx`, `example`, `acme`, `org`, `other`, `elsewhere`, `actions`, `github`,
+plus common open-source maintainer orgs (`nodejs`, `microsoft`, `eslint`,
+`prettier`, `babel`, `webpack`, etc.).
 
 ## Running locally
 

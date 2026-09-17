@@ -22,8 +22,7 @@ if [ -n "${GENERICITY_EXTRA_SAFE_KEYS:-}" ]; then
 fi
 
 SAFE_DEV_USERS="alice|bob|ci|test|example|runner|actions|user"
-SAFE_GITHUB_ORGS="kacxx/shipledger|example/|acme/|org/|other/|elsewhere/|actions/|github/"
-SAFE_GITHUB_WELLKNOWN="nodejs|npm/|isaacs|sindresorhus|epoberezkin|fastify|ajv-validator|eslint|vitest-dev|microsoft|jestjs|chaijs|mochajs|typescriptlang|chalk|yargs|DefinitelyTyped|sponsors|prettier|rollup|vitejs|facebook|vercel|lukeed|ljharb|es-shims|gulpjs|mdn|tc39|web-infra-dev|unjs|antfu|pnpm|webdriverio|standard|feross|substack|browserify|gruntjs|karma-runner|postcss|babel|webpack|lodash|expressjs|koajs|hapijs|angular|sveltejs|vuejs|remix-run|nextjs"
+SAFE_GITHUB_OWNERS="kacxx|example|acme|org|other|elsewhere|actions|github|nodejs|npm|isaacs|sindresorhus|epoberezkin|fastify|ajv-validator|eslint|vitest-dev|microsoft|jestjs|chaijs|mochajs|typescriptlang|chalk|yargs|DefinitelyTyped|sponsors|prettier|rollup|vitejs|facebook|vercel|lukeed|ljharb|es-shims|gulpjs|mdn|tc39|web-infra-dev|unjs|antfu|pnpm|webdriverio|standard|feross|substack|browserify|gruntjs|karma-runner|postcss|babel|webpack|lodash|expressjs|koajs|hapijs|angular|sveltejs|vuejs|remix-run|nextjs"
 
 SKIP_FILES_RE='(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|\.tmp/|node_modules/|dist/|\.git/)'
 
@@ -85,10 +84,6 @@ scan_content() {
     [ -z "$match" ] && continue
     local lineno="${match%%:*}"
     local line="${match#*:}"
-    # Skip self-referential lines
-    if printf '%s' "$line" | grep -qE 'SAFE_KEY_PREFIXES|safe.key|safe.prefix|product.namespace|GENERICITY'; then
-      continue
-    fi
     local keys
     keys=$(printf '%s' "$line" | grep -oE '\b[A-Z]{2,10}-[0-9]{1,6}\b' 2>/dev/null || true)
     while IFS= read -r key; do
@@ -116,7 +111,7 @@ scan_content() {
     done <<< "$paths"
   done < <(grep -nE '/Users/[a-zA-Z][a-zA-Z0-9._-]+/|/home/[a-zA-Z][a-zA-Z0-9._-]+/|[A-Z]:\\Users\\[a-zA-Z][a-zA-Z0-9._-]+\\' "$target" 2>/dev/null || true)
 
-  # R4: GitHub org/repo references — extract each ref, check independently
+  # R4: GitHub org/repo references — extract owner, exact match against allowlist
   if ! printf '%s' "$file" | grep -qE '(package-lock|pnpm-lock|yarn\.lock)'; then
     while IFS= read -r match; do
       [ -z "$match" ] && continue
@@ -126,7 +121,9 @@ scan_content() {
       refs=$(printf '%s' "$line" | grep -oE 'github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+' 2>/dev/null || true)
       while IFS= read -r ref; do
         [ -z "$ref" ] && continue
-        if ! printf '%s' "$ref" | grep -qiE "github\\.com/(${SAFE_GITHUB_ORGS}|${SAFE_GITHUB_WELLKNOWN})"; then
+        local owner
+        owner=$(printf '%s' "$ref" | sed 's|.*github\.com/||' | cut -d/ -f1)
+        if ! printf '%s' "$owner" | grep -qiE "^(${SAFE_GITHUB_OWNERS})$"; then
           report_hit "R4-org-repo-ref" "$file" "$lineno"
           break
         fi
