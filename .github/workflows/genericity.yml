@@ -1,0 +1,45 @@
+name: genericity check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scan-files:
+    name: scan tracked content
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run genericity scanner
+        run: bash scripts/genericity-check.sh
+
+  scan-pr-diff:
+    name: scan PR diff
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan lines introduced by this PR
+        run: bash scripts/genericity-check.sh --diff "origin/${{ github.base_ref }}"
+
+  scan-pr-metadata:
+    name: scan PR metadata
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PR title and body
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          rc=0
+          printf '%s\n' "$PR_TITLE" | bash scripts/genericity-check.sh --stdin "PR-title" || rc=1
+          printf '%s\n' "$PR_BODY"  | bash scripts/genericity-check.sh --stdin "PR-body"  || rc=1
+          exit $rc
