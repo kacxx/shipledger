@@ -46,7 +46,9 @@ validate_deny_patterns() {
   local bad=0
   while IFS= read -r pat; do
     [ -z "$pat" ] && continue
-    if ! printf '' | grep -iE "$pat" >/dev/null 2>&1; then
+    local grc
+    printf '' | grep -iE "$pat" >/dev/null 2>&1 && grc=$? || grc=$?
+    if [ "$grc" -eq 2 ]; then
       printf 'ERROR  [R5-deny-pattern]  invalid regex: (pattern not printed)\n'
       bad=1
     fi

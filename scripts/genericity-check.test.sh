@@ -23,9 +23,13 @@ assert_clean() {
 
 assert_violation() {
   local label="$1" input="$2" expected_rule="$3"
-  local output
-  output=$(printf '%s\n' "$input" | bash "$SCANNER" --stdin "$label" 2>&1) || true
-  if printf '%s' "$output" | grep -q "$expected_rule"; then
+  local output rc
+  output=$(printf '%s\n' "$input" | bash "$SCANNER" --stdin "$label" 2>&1) && rc=$? || rc=$?
+  if printf '%s' "$output" | grep -qiE '^ERROR|^FATAL'; then
+    printf 'FAIL  unexpected ERROR/FATAL for violation: %s\n' "$label"
+    printf '      got: %s\n' "$output"
+    fail=$((fail + 1))
+  elif printf '%s' "$output" | grep -q 'FAIL' && printf '%s' "$output" | grep -q "$expected_rule"; then
     pass=$((pass + 1))
   else
     printf 'FAIL  expected violation [%s]: %s\n' "$expected_rule" "$label"
@@ -202,6 +206,10 @@ GENERICITY_DENY_PATTERNS="${_r5a}${_r5b}" \
   assert_violation "R5-env-pattern" \
   "mentions ${_r5a}${_r5b}-thing" \
   "R5-deny-pattern"
+
+GENERICITY_DENY_PATTERNS="${_r5a}${_r5b}" \
+  assert_clean "R5-valid-pattern-no-match" \
+  "totally unrelated content here"
 
 GENERICITY_DENY_PATTERNS="" \
   assert_clean "R5-no-env-pattern" \
