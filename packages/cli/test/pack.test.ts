@@ -60,4 +60,15 @@ describe('installed package', () => {
     // A schema resolution failure surfaces as an unexpected exit code here.
     expect(run(['render', 'report', '--input', 'nope.json']).out).toMatch(/Cannot read/);
   });
+
+  it('reports a build identity (digest + embedded commit) from the installed tree', () => {
+    const r = run(['identity']);
+    expect(r.code).toBe(0);
+    const report = JSON.parse(r.out);
+    expect(report.cliVersion).toBe('0.1.0');
+    expect(report.build.digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(report.build.digestManifestVersion).toBe('1');
+    // prepack ran write-build-info.mjs inside the git worktree, so the commit is captured.
+    expect(report.commit).toMatch(/^[0-9a-f]{40}$/);
+  });
 });

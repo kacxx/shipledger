@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { runCheck } from './check.js';
 import { runDoctor } from './doctor.js';
+import { runIdentity } from './identity.js';
 import { runInit } from './init.js';
 import { runRender } from './render.js';
 
@@ -16,6 +17,7 @@ function usage(): string {
     '  init     [--preset <name>] [--out <path>]',
     '  render   <report|changelog|release-notes> --input <path> [--notes <path>]',
     '           [--verify-against-repos --config <path>]',
+    '  identity  print the CLI build identity (version, embedded commit, runtime digest) as JSON',
     ''
   ].join('\n');
 }
@@ -31,6 +33,8 @@ export async function main(argv: string[]): Promise<number> {
       return runInit(rest, process.cwd());
     case 'render':
       return runRender(rest, process.cwd());
+    case 'identity':
+      return runIdentity(rest);
     case undefined:
     case '--help':
     case '-h':
