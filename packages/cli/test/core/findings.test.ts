@@ -80,7 +80,8 @@ describe('summarise and decideVerdict', () => {
   it('counts each category', () => {
     expect(summarise({ commits, items, ranges })).toEqual({
       items: 2, itemsLinked: 1, commits: 3, commitsIgnored: 1,
-      noReference: 1, unknownReference: 1, itemsWithoutCommits: 1, rangeDivergence: 1
+      noReference: 1, unknownReference: 1, itemsWithoutCommits: 1, rangeDivergence: 1,
+      indeterminateCommits: 0, indeterminateItems: 0
     });
   });
 

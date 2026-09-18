@@ -9,6 +9,20 @@ export type FindingName =
   | 'item-without-commits'
   | 'range-divergence';
 
+/**
+ * Whether a commit's or item's shipment provenance can be established from the
+ * range. Linear ranges are `determinate`; a range whose base is not an ancestor
+ * of head cannot prove what shipped, so its commits — and items resting on them
+ * — are `indeterminate`. See ADR 0008.
+ */
+export type Attribution = 'determinate' | 'indeterminate';
+
+/** The tree-to-tree statuses Shipledger represents. Rename detection is disabled. */
+export type DeltaStatus = 'A' | 'M' | 'D' | 'T';
+
+/** One constrained status per path — a file-list fact only, not commit ownership. */
+export interface DeltaEntry { status: DeltaStatus; path: string }
+
 export interface MatcherConfig {
   id: string;
   sources: CommitSource[];
@@ -120,7 +134,20 @@ export interface Reference {
   resolvesTo: string[];
 }
 
-export interface CommitResult {
+export interface Violation { finding: FindingName; count: number }
+
+/*
+ * Two serialized shapes, kept as distinct types rather than one interface with
+ * optional additions: version 1 (pre-WP-012) and version 2 (divergent-range
+ * attribution, ADR 0008). Reconciliation always produces version 2; version 1
+ * is retained only for reading historical artifacts. The `*V1` sub-types are the
+ * legacy read shape; the unsuffixed types are the version-2 working shape used
+ * throughout the engine.
+ */
+
+// ---- version 1 (legacy read shape) ----
+
+export interface CommitResultV1 {
   repo: string;
   sha: string;
   subject: string;
@@ -132,7 +159,7 @@ export interface CommitResult {
   findings: FindingName[];
 }
 
-export interface RangeResult {
+export interface RangeResultV1 {
   repo: string;
   base: string;
   baseSha: string;
@@ -145,16 +172,18 @@ export interface RangeResult {
   findings: FindingName[];
 }
 
-export interface ItemResult {
+export interface ItemLinkV1 { repo: string; sha: string }
+
+export interface ItemResultV1 {
   id: string;
   title: string;
   type: string;
   status: string;
-  commits: Array<{ repo: string; sha: string }>;
+  commits: ItemLinkV1[];
   findings: FindingName[];
 }
 
-export interface Summary {
+export interface SummaryV1 {
   items: number;
   itemsLinked: number;
   commits: number;
@@ -165,10 +194,32 @@ export interface Summary {
   rangeDivergence: number;
 }
 
-export interface Violation { finding: FindingName; count: number }
+// ---- version 2 (working shape, ADR 0008) ----
 
-export interface VerifiedChangeset {
-  version: 1;
+export interface CommitResult extends CommitResultV1 { attribution: Attribution }
+
+export interface RangeResult extends RangeResultV1 { effectiveDelta: DeltaEntry[] }
+
+export interface ItemLink extends ItemLinkV1 { attribution: Attribution }
+
+export interface ItemResult {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  commits: ItemLink[];
+  attribution: Attribution;
+  findings: FindingName[];
+}
+
+export interface Summary extends SummaryV1 {
+  indeterminateCommits: number;
+  indeterminateItems: number;
+}
+
+// ---- top level ----
+
+export interface VerifiedChangesetBase {
   generatedAt?: string;
   cliVersion: string;
   preset: string;
@@ -177,13 +228,27 @@ export interface VerifiedChangeset {
   policy: PolicyConfig;
   changeset: { id: string; source: ChangesetSource; items: ChangesetItem[] };
   links?: ResolvedLinks;
+  verdict: 'pass' | 'fail';
+  violations: Violation[];
+}
+
+export interface VerifiedChangesetV1 extends VerifiedChangesetBase {
+  version: 1;
+  ranges: RangeResultV1[];
+  commits: CommitResultV1[];
+  items: ItemResultV1[];
+  summary: SummaryV1;
+}
+
+export interface VerifiedChangesetV2 extends VerifiedChangesetBase {
+  version: 2;
   ranges: RangeResult[];
   commits: CommitResult[];
   items: ItemResult[];
   summary: Summary;
-  verdict: 'pass' | 'fail';
-  violations: Violation[];
 }
+
+export type VerifiedChangeset = VerifiedChangesetV1 | VerifiedChangesetV2;
 
 export const NO_REFERENCE_CLASSIFICATIONS = [
   'revert', 'dependency-bump', 'hotfix-already-released', 'tooling-or-ci', 'process-miss'

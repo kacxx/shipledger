@@ -6,7 +6,8 @@ import { assertCommitExists, assertUsableRepo, rangeFactsFor, tryResolveRef } fr
 import { walkRange } from './git/log.js';
 import { commitKey } from './notes.js';
 import type {
-  Changeset, CommitRecord, RangeResult, ResolvedConfig, VerifiedChangeset
+  Changeset, CommitRecord, RangeResult, ResolvedConfig,
+  VerifiedChangeset, VerifiedChangesetV1, VerifiedChangesetV2
 } from './types.js';
 
 /**
@@ -28,6 +29,36 @@ export interface GitVerification {
 }
 
 const show = (c: { repo: string; sha: string }): string => `${c.repo} ${c.sha.slice(0, 8)}`;
+
+/**
+ * Projects a version-2 reconciliation down to the version-1 shape so it can be
+ * compared against a stored v1 artifact. This is only sound for an all-linear run:
+ * on a linear range attribution is uniformly `determinate` and no v2 field carries
+ * information a v1 artifact lacks, so dropping the v2-only fields loses nothing.
+ * A divergent run is never projected — it is rejected before reaching here.
+ */
+function projectToV1(v: VerifiedChangesetV2): VerifiedChangesetV1 {
+  return {
+    version: 1,
+    ...(v.generatedAt === undefined ? {} : { generatedAt: v.generatedAt }),
+    cliVersion: v.cliVersion,
+    preset: v.preset,
+    history: v.history,
+    configFingerprint: v.configFingerprint,
+    policy: v.policy,
+    changeset: v.changeset,
+    ...(v.links ? { links: v.links } : {}),
+    ranges: v.ranges.map(({ effectiveDelta: _effectiveDelta, ...r }) => r),
+    commits: v.commits.map(({ attribution: _attribution, ...c }) => c),
+    items: v.items.map(({ attribution: _attribution, commits, ...i }) => ({
+      ...i,
+      commits: commits.map(({ attribution: _linkAttribution, ...l }) => l)
+    })),
+    summary: (({ indeterminateCommits: _ic, indeterminateItems: _ii, ...s }) => s)(v.summary),
+    verdict: v.verdict,
+    violations: v.violations
+  };
+}
 
 function describeDifference(artifact: VerifiedChangeset, recomputed: VerifiedChangeset): string[] {
   const problems: string[] = [];
@@ -54,8 +85,8 @@ function describeDifference(artifact: VerifiedChangeset, recomputed: VerifiedCha
     }
   }
 
-  // Anything left is a derived field: references, findings, items, summary,
-  // verdict. Naming the key is enough, since the artifact is self-describing.
+  // Anything left is a derived field: references, findings, attribution, items,
+  // summary, verdict. Naming the key is enough, since the artifact is self-describing.
   if (problems.length === 0) {
     for (const key of Object.keys(recomputed) as Array<keyof VerifiedChangeset>) {
       if (NOT_COMPARED.has(key)) continue;
@@ -75,6 +106,12 @@ function describeDifference(artifact: VerifiedChangeset, recomputed: VerifiedCha
  * summary passes it. Here the commits, their content, the range facts and
  * every derived field have to come back identical.
  *
+ * Version routing (ADR 0008): reconciliation now produces version 2. A v2 artifact
+ * is re-derived and compared as v2. A linear v1 artifact is re-derived and compared
+ * against a v1 projection of the result. A divergent v1 artifact cannot establish a
+ * new or current trusted reconciliation — it is rejected and must be regenerated as
+ * v2, because v1 cannot express the indeterminacy the divergence requires.
+ *
  * The tracker's claim is still taken on trust — it is embedded in the artifact
  * and nothing local can confirm it.
  */
@@ -88,6 +125,15 @@ export function assertVerifiedAgainstGit(
     throw usageError(
       `This artifact was produced by shipledger ${verified.cliVersion} and cannot be verified by ${cliVersion}. ` +
       `Reconciliation is only reproducible within one version — install ${verified.cliVersion} to verify it.`
+    );
+  }
+
+  if (verified.version === 1 && verified.ranges.some((r) => !r.baseIsAncestorOfHead)) {
+    throw usageError(
+      'This is a version-1 artifact describing a divergent range. It remains viewable as ' +
+      'historical evidence, but a version-1 artifact cannot express indeterminate attribution, ' +
+      'so it cannot establish a new or current trusted reconciliation. Regenerate it as ' +
+      'version 2 (re-run `shipledger check`) to verify it against the repositories.'
     );
   }
 
@@ -137,13 +183,30 @@ export function assertVerifiedAgainstGit(
     }))
   };
 
-  const recomputed = reconcile({
+  const recomputedV2 = reconcile({
     config, compiled: compileAll(config), changeset, commits, ranges,
     cliVersion, configFingerprint
   });
 
-  if (comparable(verified) !== comparable(recomputed)) {
-    const problems = describeDifference(verified, recomputed);
+  if (verified.version === 1) {
+    // The stored artifact claims linearity; if the repositories now diverge, a v1
+    // reconciliation can no longer be re-derived honestly and must be regenerated.
+    if (recomputedV2.ranges.some((r) => !r.baseIsAncestorOfHead)) {
+      throw usageError(
+        'The repositories now show a divergent range for this version-1 artifact. A version-1 ' +
+        'reconciliation cannot express the indeterminate attribution divergence requires — ' +
+        'regenerate the artifact as version 2 (re-run `shipledger check`).'
+      );
+    }
+    const recomputed = projectToV1(recomputedV2);
+    if (comparable(verified) !== comparable(recomputed)) {
+      const problems = describeDifference(verified, recomputed);
+      throw usageError(
+        `Artifact does not match the repositories:\n${problems.map((p) => `  ${p}`).join('\n')}`
+      );
+    }
+  } else if (comparable(verified) !== comparable(recomputedV2)) {
+    const problems = describeDifference(verified, recomputedV2);
     throw usageError(
       `Artifact does not match the repositories:\n${problems.map((p) => `  ${p}`).join('\n')}`
     );

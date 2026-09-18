@@ -9,12 +9,31 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
   const lookup = buildNoteLookup(notes ?? { version: 1 });
   const out: string[] = [`# ${verified.changeset.id}`, ''];
 
-  const linked = verified.items.filter((i) => i.commits.length > 0);
+  // Only determinately-satisfied items are presented as changes; an
+  // indeterminate-linked item has commits but unprovable attribution (ADR 0008)
+  // and is surfaced separately rather than claimed as shipped. `attribution` is
+  // absent on a v1 artifact, so v1 rendering is unchanged.
+  const items = verified.items as Array<{
+    id: string; title: string; status: string; commits: unknown[];
+    findings: string[]; attribution?: string;
+  }>;
+  const isIndeterminate = (i: { attribution?: string }): boolean => i.attribution === 'indeterminate';
+  const linked = items.filter((i) => i.commits.length > 0 && !isIndeterminate(i));
   if (linked.length > 0) {
     out.push('## Changes', '');
     for (const item of linked) {
       const n = item.commits.length;
       out.push(`- **${item.id}** ${item.title} (${n} commit${n === 1 ? '' : 's'})`);
+    }
+    out.push('');
+  }
+
+  const indeterminate = items.filter(isIndeterminate);
+  if (indeterminate.length > 0) {
+    out.push('## Attribution indeterminate (divergent range)', '');
+    for (const i of indeterminate) {
+      const n = i.commits.length;
+      out.push(`- **${i.id}** ${i.title}${n > 0 ? ` (${n} indeterminate commit${n === 1 ? '' : 's'})` : ''}`);
     }
     out.push('');
   }

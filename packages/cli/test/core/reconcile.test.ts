@@ -30,7 +30,7 @@ const FINGERPRINT = `sha256:${'0'.repeat(64)}`;
 const range = (repo: string, over: Partial<RangeResult> = {}): RangeResult => ({
   repo, base: 'v1', baseSha: SHA_BASE, head: 'v2', headSha: SHA_HEAD,
   include: [], mergeBase: SHA_MERGE, baseIsAncestorOfHead: true, commitsOnlyInBase: 0,
-  findings: [], ...over
+  effectiveDelta: [], findings: [], ...over
 });
 
 const commit = (over: Partial<CommitRecord>): CommitRecord => ({
