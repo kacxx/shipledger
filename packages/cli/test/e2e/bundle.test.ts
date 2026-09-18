@@ -80,7 +80,7 @@ describe('end to end over the deterministic bundle', () => {
     const first = v.commits.find((c) => c.sha === shaFor('PROJ-1: add the widget (#11)'));
     expect(first?.findings).toEqual([]);
     expect(v.items.find((i) => i.id === 'PROJ-1')?.commits).toEqual([
-      { repo: 'pinned', sha: shaFor('PROJ-1: add the widget (#11)') }
+      { repo: 'pinned', sha: shaFor('PROJ-1: add the widget (#11)'), attribution: 'determinate' }
     ]);
 
     const second = v.commits.find((c) => c.sha === shaFor('PROJ-2: fix the gadget (#12)'));
@@ -88,7 +88,7 @@ describe('end to end over the deterministic bundle', () => {
     expect(second?.references.every((r) => r.resolvesTo.length > 0)).toBe(true);
     expect(second?.findings).toEqual([]);
     expect(v.items.find((i) => i.id === 'PROJ-2')?.commits).toEqual([
-      { repo: 'pinned', sha: shaFor('PROJ-2: fix the gadget (#12)') }
+      { repo: 'pinned', sha: shaFor('PROJ-2: fix the gadget (#12)'), attribution: 'determinate' }
     ]);
   });
 
@@ -140,7 +140,8 @@ describe('end to end over the deterministic bundle', () => {
     const v = read();
     expect(v.summary).toEqual({
       items: 3, itemsLinked: 2, commits: 5, commitsIgnored: 1,
-      noReference: 1, unknownReference: 1, itemsWithoutCommits: 1, rangeDivergence: 0
+      noReference: 1, unknownReference: 1, itemsWithoutCommits: 1, rangeDivergence: 0,
+      indeterminateCommits: 0, indeterminateItems: 0
     });
     expect(v.violations).toEqual([{ finding: 'unknown-reference', count: 1 }]);
     expect(v.verdict).toBe('fail');

@@ -3,10 +3,11 @@ import type { NotesFile, VerifiedChangeset } from '../types.js';
 export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFile): string {
   const out: string[] = [`## ${verified.changeset.id}`, ''];
 
-  const byType = new Map<string, typeof verified.items>();
-  for (const item of verified.items.filter((i) => i.commits.length > 0)) {
+  const byType = new Map<string, Array<{ id: string; title: string }>>();
+  for (const item of verified.items) {
+    if (item.commits.length === 0) continue;
     const bucket = byType.get(item.type) ?? [];
-    bucket.push(item);
+    bucket.push({ id: item.id, title: item.title });
     byType.set(item.type, bucket);
   }
 

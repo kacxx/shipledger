@@ -7,7 +7,7 @@ export const FIXED_DATE = '2026-01-01T00:00:00+0000';
 
 export interface FixtureRepo {
   path: string;
-  commit(subject: string, opts?: { body?: string; author?: string; file?: string }): string;
+  commit(subject: string, opts?: { body?: string; author?: string; file?: string; content?: string }): string;
   branch(name: string): void;
   checkout(name: string): void;
   tag(name: string): void;
@@ -42,7 +42,7 @@ export function makeRepo(): FixtureRepo {
       n += 1;
       const file = opts.file ?? `f${n}.txt`;
       mkdirSync(dirname(join(path, file)), { recursive: true });
-      writeFileSync(join(path, file), `${subject}\n`);
+      writeFileSync(join(path, file), opts.content ?? `${subject}\n`);
       run(['add', file]);
       const args = ['commit', '-q', '-m', subject];
       if (opts.body !== undefined) args.push('-m', opts.body);

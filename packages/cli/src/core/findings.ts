@@ -1,6 +1,5 @@
 import type {
-  CommitRecord, CommitResult, FindingName, ItemResult,
-  PolicyConfig, RangeResult, Reference, Summary, Violation
+  CommitRecord, FindingName, PolicyConfig, Reference, Summary, SummaryV1, Violation
 } from '../types.js';
 import type { CompiledIgnore } from './compile.js';
 
@@ -17,21 +16,38 @@ export function matchIgnoreRule(commit: CommitRecord, ignore: CompiledIgnore): s
   return null;
 }
 
-export function commitFindings(references: Reference[], ignored: boolean): FindingName[] {
-  if (ignored) return [];
+/**
+ * Negative attribution (`no-reference`/`unknown-reference`) is only honest on a
+ * linear range: it asserts a reachable commit shipped without a resolvable
+ * reference. On a divergent range reachability does not prove shipment, so no such
+ * finding is emitted — the commit is marked indeterminate instead (ADR 0008).
+ */
+export function commitFindings(
+  references: Reference[], ignored: boolean, divergent: boolean
+): FindingName[] {
+  if (ignored || divergent) return [];
   if (references.length === 0) return ['no-reference'];
   return references.some((r) => r.resolvesTo.length === 0) ? ['unknown-reference'] : [];
 }
 
-interface Sets { commits: CommitResult[]; items: ItemResult[]; ranges: RangeResult[] }
+interface Findable { findings: FindingName[] }
+interface SummariseCommit extends Findable { ignored: { rule: string } | null }
+interface SummariseItem extends Findable { commits: unknown[] }
+interface Sets {
+  commits: SummariseCommit[];
+  items: SummariseItem[];
+  ranges: Findable[];
+}
 
-function countFinding(sets: Sets, finding: FindingName): number {
+function countFinding(
+  sets: { commits: Findable[]; items: Findable[]; ranges: Findable[] }, finding: FindingName
+): number {
   return sets.commits.filter((c) => c.findings.includes(finding)).length
     + sets.items.filter((i) => i.findings.includes(finding)).length
     + sets.ranges.filter((r) => r.findings.includes(finding)).length;
 }
 
-export function summarise(sets: Sets): Summary {
+function summariseCommon(sets: Sets): SummaryV1 {
   return {
     items: sets.items.length,
     itemsLinked: sets.items.filter((i) => i.commits.length > 0).length,
@@ -44,8 +60,28 @@ export function summarise(sets: Sets): Summary {
   };
 }
 
+export function summariseV1(sets: Sets): SummaryV1 {
+  return summariseCommon(sets);
+}
+
+interface Attributed { attribution: 'determinate' | 'indeterminate' }
+
+export function summarise(
+  sets: {
+    commits: Array<SummariseCommit & Attributed>;
+    items: Array<SummariseItem & Attributed>;
+    ranges: Findable[];
+  }
+): Summary {
+  return {
+    ...summariseCommon(sets),
+    indeterminateCommits: sets.commits.filter((c) => c.attribution === 'indeterminate').length,
+    indeterminateItems: sets.items.filter((i) => i.attribution === 'indeterminate').length
+  };
+}
+
 export function decideVerdict(
-  args: Sets & { policy: PolicyConfig }
+  args: { commits: Findable[]; items: Findable[]; ranges: Findable[]; policy: PolicyConfig }
 ): { verdict: 'pass' | 'fail'; violations: Violation[] } {
   const violations: Violation[] = [];
   for (const finding of FINDING_ORDER) {

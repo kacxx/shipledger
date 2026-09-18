@@ -1,7 +1,7 @@
 import { buildNoteLookup, commitKey, referenceKey } from '../notes.js';
 import type {
-  CommitResult, Namespace, NotesFile, RangeResult,
-  ResolvedLinks, ResolvedReferenceLink, VerifiedChangeset
+  CommitResult, CommitResultV1, ItemResult, ItemResultV1, Namespace, NotesFile, RangeResult,
+  RangeResultV1, ResolvedLinks, ResolvedReferenceLink, VerifiedChangeset
 } from '../types.js';
 
 export interface VerificationContext {
@@ -112,7 +112,7 @@ function noteSuffix(entry: { classification: string; impact?: string; note: stri
 }
 
 function commitRow(
-  c: CommitResult,
+  c: { repo: string; sha: string; subject: string },
   status: string,
   detail: string,
   noteSuffix: string,
@@ -123,16 +123,16 @@ function commitRow(
 
 function countFindings(verified: VerifiedChangeset): number {
   let count = 0;
-  for (const c of verified.commits) {
+  for (const c of verified.commits as CommitResultV1[]) {
     if (c.findings.includes('no-reference')) count++;
     if (c.findings.includes('unknown-reference')) {
       count += c.references.filter((r) => r.resolvesTo.length === 0).length;
     }
   }
-  for (const i of verified.items) {
+  for (const i of verified.items as ItemResultV1[]) {
     if (i.findings.includes('item-without-commits')) count++;
   }
-  for (const r of verified.ranges) {
+  for (const r of verified.ranges as RangeResultV1[]) {
     if (r.findings.includes('range-divergence')) count++;
   }
   return count;
@@ -182,10 +182,17 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
   out.push(`**Source:** ${mdEscape(src.kind)} · ${mdEscape(src.ref)} · fetched ${src.fetchedAt}`);
   out.push('');
 
-  const repos = [...new Set(verified.ranges.map((r) => r.repo))];
+  // v2 fields (attribution, effectiveDelta) are absent on a v1 artifact, so the
+  // common v1 view drives shared rendering and v2 extras are guarded on version.
+  const isV2 = verified.version === 2;
+  const rangesView = verified.ranges as RangeResultV1[];
+  const commitsView = verified.commits as CommitResultV1[];
+  const itemsView = verified.items as ItemResultV1[];
+
+  const repos = [...new Set(rangesView.map((r) => r.repo))];
   for (const repo of repos) {
-    const range = verified.ranges.find((r) => r.repo === repo) as RangeResult;
-    const repoCommits = verified.commits.filter((c) => c.repo === repo);
+    const range = rangesView.find((r) => r.repo === repo) as RangeResultV1;
+    const repoCommits = commitsView.filter((c) => c.repo === repo);
 
     out.push(`## ${mdEscape(repo)}`);
     out.push('');
@@ -208,6 +215,16 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
       const rangeNote = lookup.ranges.get(repo);
       out.push(`| Finding | range\\-divergence${noteSuffix(rangeNote)} |`);
     }
+    if (isV2) {
+      const delta = (range as RangeResult).effectiveDelta;
+      const rendered = delta.length === 0
+        ? 'no file changes'
+        : delta.map((d) => `${d.status} ${codeSpan(d.path)}`).join(', ');
+      out.push(`| Effective file\\-list delta | ${rendered} |`);
+      if (!range.baseIsAncestorOfHead) {
+        out.push(`| Attribution | indeterminate — commits below are audit context only, not proven work |`);
+      }
+    }
     out.push('');
 
     if (repoCommits.length > 0) {
@@ -219,6 +236,21 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
       for (const c of repoCommits) {
         if (c.ignored) {
           out.push(commitRow(c, 'ignored', mdEscape(c.ignored.rule), '', links));
+          continue;
+        }
+
+        if (isV2 && (c as CommitResult).attribution === 'indeterminate') {
+          // A divergent-range commit is audit context, never proven work: show its
+          // references for display but label it attribution-indeterminate.
+          const refDetail = c.references.length > 0
+            ? c.references.map((r) =>
+                `${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)}/${r.sources.join(', ')})`
+              ).join('; ')
+            : '';
+          const detail = refDetail
+            ? `indeterminate — divergent range, not attributable; refs: ${refDetail}`
+            : 'indeterminate — divergent range, not attributable';
+          out.push(commitRow(c, 'indeterminate', detail, '', links));
           continue;
         }
 
@@ -251,11 +283,15 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
   out.push('| Item | Title | Type | Status | Commits | Finding | Triage |');
   out.push('| --- | --- | --- | --- | --- | --- | --- |');
 
-  for (const item of verified.items) {
+  for (const item of itemsView) {
     const commitList = item.commits.length > 0
       ? item.commits.map((c) => `${linkedSha(links, c.repo, c.sha)} (${mdEscape(c.repo)})`).join(', ')
       : '—';
-    const finding = item.findings.includes('item-without-commits') ? 'item\\-without\\-commits' : '—';
+    const finding = item.findings.includes('item-without-commits')
+      ? 'item\\-without\\-commits'
+      : isV2 && (item as ItemResult).attribution === 'indeterminate'
+        ? 'attribution\\-indeterminate'
+        : '—';
     const itemNote = lookup.items.get(item.id);
     const triage = itemNote
       ? `${classificationCell(itemNote)}: ${mdEscape(itemNote.note)}`
@@ -266,8 +302,8 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
   }
   out.push('');
 
-  const unknownRefCommits = verified.commits.filter((c) => c.findings.includes('unknown-reference'));
-  const noRefCommits = verified.commits.filter((c) => c.findings.includes('no-reference'));
+  const unknownRefCommits = commitsView.filter((c) => c.findings.includes('unknown-reference'));
+  const noRefCommits = commitsView.filter((c) => c.findings.includes('no-reference'));
 
   if (unknownRefCommits.length > 0 || noRefCommits.length > 0) {
     out.push('## Unresolved');
@@ -286,10 +322,10 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
     out.push(`${parts.join(', ')}.`);
     out.push('');
 
-    const allUnresolved = verified.commits.filter(
+    const allUnresolved = commitsView.filter(
       (c) => c.findings.includes('unknown-reference') || c.findings.includes('no-reference')
     );
-    const byRepo = new Map<string, CommitResult[]>();
+    const byRepo = new Map<string, CommitResultV1[]>();
     for (const c of allUnresolved) {
       const list = byRepo.get(c.repo) ?? [];
       list.push(c);

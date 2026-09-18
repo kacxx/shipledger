@@ -3,8 +3,8 @@ import { buildItemIndex, resolveReferences } from './index-items.js';
 import { commitFindings, decideVerdict, matchIgnoreRule, summarise } from './findings.js';
 import type { CompiledIgnore, CompiledMatcher } from './compile.js';
 import type {
-  Changeset, CommitRecord, CommitResult, ItemResult, RangeResult,
-  ResolvedConfig, VerifiedChangeset
+  Attribution, Changeset, CommitRecord, CommitResult, ItemLink, ItemResult, RangeResult,
+  ResolvedConfig, VerifiedChangesetV2
 } from '../types.js';
 
 export interface ReconcileInput {
@@ -18,15 +18,25 @@ export interface ReconcileInput {
   now?: string;
 }
 
-export function reconcile(input: ReconcileInput): VerifiedChangeset {
+export function reconcile(input: ReconcileInput): VerifiedChangesetV2 {
   const { config, changeset, compiled } = input;
   const index = buildItemIndex(changeset, config.matchers);
   const repoOrder = new Map(config.repos.map((r, i) => [r.name, i]));
 
-  const linksByItem = new Map<string, Array<{ repo: string; sha: string }>>();
+  // A commit's attribution follows its range: reachability proves shipment only
+  // where base is an ancestor of head. Any divergent range in the run also decides
+  // how a no-link item is treated (ADR 0008 — run-level indeterminacy scope).
+  const divergentRepos = new Set(
+    input.ranges.filter((r) => !r.baseIsAncestorOfHead).map((r) => r.repo)
+  );
+  const divergentInRun = divergentRepos.size > 0;
+
+  const linksByItem = new Map<string, ItemLink[]>();
   for (const item of changeset.items) linksByItem.set(item.id, []);
 
   const commits: CommitResult[] = input.commits.map((commit) => {
+    const divergent = divergentRepos.has(commit.repo);
+    const attribution: Attribution = divergent ? 'indeterminate' : 'determinate';
     const base = {
       repo: commit.repo, sha: commit.sha, subject: commit.subject, body: commit.body,
       author: commit.author, committedAt: commit.committedAt
@@ -34,28 +44,52 @@ export function reconcile(input: ReconcileInput): VerifiedChangeset {
 
     const rule = matchIgnoreRule(commit, compiled.ignore);
     if (rule !== null) {
-      return { ...base, ignored: { rule }, references: [], findings: [] };
+      return { ...base, attribution, ignored: { rule }, references: [], findings: [] };
     }
 
     const { references, links } = resolveReferences(
       extractReferences(commit, compiled.matchers), commit.repo, index
     );
+    // References are retained on divergent commits for display and to keep every
+    // item link; the link carries the commit's attribution so a divergent commit
+    // never satisfies an item on its own.
     for (const { itemId } of links) {
       const bucket = linksByItem.get(itemId);
       if (!bucket) continue;
       if (!bucket.some((c) => c.repo === commit.repo && c.sha === commit.sha)) {
-        bucket.push({ repo: commit.repo, sha: commit.sha });
+        bucket.push({ repo: commit.repo, sha: commit.sha, attribution });
       }
     }
-    return { ...base, ignored: null, references, findings: commitFindings(references, false) };
+    return {
+      ...base, attribution, ignored: null, references,
+      findings: commitFindings(references, false, divergent)
+    };
   });
 
   const items: ItemResult[] = changeset.items.map((item) => {
     const linked = linksByItem.get(item.id) ?? [];
+    const hasDeterminate = linked.some((l) => l.attribution === 'determinate');
+
+    let attribution: Attribution;
+    let findings: ItemResult['findings'];
+    if (hasDeterminate) {
+      // At least one determinate link ships the item, even alongside divergence.
+      attribution = 'determinate';
+      findings = [];
+    } else if (linked.length === 0 && !divergentInRun) {
+      attribution = 'determinate';
+      findings = ['item-without-commits'];
+    } else {
+      // No determinate link, and either an indeterminate link (linked.length > 0)
+      // or a divergent range in the run: the item cannot be safely called missing,
+      // nor is it satisfied.
+      attribution = 'indeterminate';
+      findings = [];
+    }
+
     return {
       id: item.id, title: item.title, type: item.type, status: item.status,
-      commits: linked,
-      findings: linked.length === 0 ? ['item-without-commits'] : []
+      commits: linked, attribution, findings
     };
   });
 
@@ -67,7 +101,7 @@ export function reconcile(input: ReconcileInput): VerifiedChangeset {
   const { verdict, violations } = decideVerdict({ ...sets, policy: config.policy });
 
   return {
-    version: 1,
+    version: 2,
     ...(input.now === undefined ? {} : { generatedAt: input.now }),
     cliVersion: input.cliVersion,
     preset: `${config.presetName}@${config.presetVersion}`,
