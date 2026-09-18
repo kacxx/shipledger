@@ -165,6 +165,9 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
   out.push(`| Config fingerprint | \`${verified.configFingerprint}\` |`);
   out.push(`| Items linked | ${s.itemsLinked} / ${s.items} |`);
   out.push(`| Commits | ${s.commits} (${s.commitsIgnored} ignored) |`);
+  if (verified.version === 2) {
+    out.push(`| Indeterminate | ${verified.summary.indeterminateCommits} commit(s), ${verified.summary.indeterminateItems} item(s) |`);
+  }
 
   if (verified.violations.length > 0) {
     out.push(`| Violations | ${verified.violations.map((v) => `${v.finding}=${v.count}`).join(', ')} |`);

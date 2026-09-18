@@ -8,6 +8,8 @@ import { validateConfig, validateVerified } from '../src/config/validate.js';
 import { assertVerifiedSemantics } from '../src/verify.js';
 import { assertVerifiedAgainstGit } from '../src/verify-git.js';
 import { renderReport } from '../src/render/report.js';
+import { renderChangelog } from '../src/render/changelog.js';
+import { renderReleaseNotes } from '../src/render/release-notes.js';
 import { CLI_VERSION } from '../src/cli/version.js';
 import { CliError } from '../src/errors.js';
 import { makeRepo, type FixtureRepo } from './helpers/repo.js';
@@ -273,6 +275,39 @@ describe('report rendering', () => {
 
   it('shows an item whose shipment attribution is indeterminate', () => {
     expect(report()).toMatch(/SYN-1.*attribution\\?-indeterminate/);
+  });
+});
+
+describe('changelog and release-notes never present indeterminate work as shipped', () => {
+  it('release notes list determinate items as shipped and indeterminate items separately', () => {
+    const text = renderReleaseNotes(readV2());
+    const marker = '### attribution indeterminate';
+    expect(text).toContain(marker);
+    const shipped = text.slice(0, text.indexOf(marker));
+    const indeterminate = text.slice(text.indexOf(marker));
+    // determinate items appear as shipped work
+    expect(shipped).toContain('(SYN-4)');
+    expect(shipped).toContain('(SYN-5)');
+    // indeterminate items are not shipped, but are surfaced
+    expect(shipped).not.toContain('(SYN-1)');
+    expect(shipped).not.toContain('(SYN-3)');
+    expect(indeterminate).toContain('(SYN-1)');
+    expect(indeterminate).toContain('(SYN-3)');
+    expect(text).toMatch(/item\(s\) with indeterminate attribution/);
+  });
+
+  it('changelog lists determinate items under Changes and indeterminate items separately', () => {
+    const text = renderChangelog(readV2());
+    const changesIdx = text.indexOf('## Changes');
+    const indetIdx = text.indexOf('## Attribution indeterminate');
+    expect(changesIdx).toBeGreaterThanOrEqual(0);
+    expect(indetIdx).toBeGreaterThan(changesIdx);
+    const changes = text.slice(changesIdx, indetIdx);
+    const indeterminate = text.slice(indetIdx);
+    expect(changes).toContain('**SYN-4**');
+    expect(changes).not.toContain('**SYN-1**');
+    expect(indeterminate).toContain('**SYN-1**');
+    expect(indeterminate).toContain('**SYN-3**');
   });
 });
 
