@@ -261,7 +261,12 @@ describe('report rendering', () => {
   it('labels the divergent commits as attribution-indeterminate, never shipped work', () => {
     const text = report();
     expect(text).toMatch(/indeterminate — divergent range, not attributable/);
-    expect(text).not.toMatch(/shipped/i);
+    // Verify indeterminate commit rows use 'indeterminate' status, not 'linked' or 'no-reference'
+    const commitRows = text.split('\n').filter((l) => l.includes('| indeterminate |'));
+    expect(commitRows.length).toBeGreaterThan(0);
+    for (const row of commitRows) {
+      expect(row).toMatch(/indeterminate — divergent range/);
+    }
   });
 
   it('does not list indeterminate commits in the unresolved shipped-work section', () => {

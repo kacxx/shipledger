@@ -1,7 +1,7 @@
 import { buildNoteLookup, commitKey, referenceKey } from '../notes.js';
 import type {
-  CommitResult, CommitResultV1, ItemResult, ItemResultV1, Namespace, NotesFile, RangeResult,
-  RangeResultV1, ResolvedLinks, ResolvedReferenceLink, VerifiedChangeset
+  CommitResult, CommitResultV1, ItemLink, ItemResult, ItemResultV1, Namespace, NotesFile,
+  RangeResult, RangeResultV1, ResolvedLinks, ResolvedReferenceLink, VerifiedChangeset
 } from '../types.js';
 
 export interface VerificationContext {
@@ -167,6 +167,9 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
   out.push(`| Commits | ${s.commits} (${s.commitsIgnored} ignored) |`);
   if (verified.version === 2) {
     out.push(`| Indeterminate | ${verified.summary.indeterminateCommits} commit(s), ${verified.summary.indeterminateItems} item(s) |`);
+    if (verified.summary.indeterminateItems > 0) {
+      out.push(`| Scope note | Divergence in any range makes unlinked items across the run indeterminate (ADR 0008) |`);
+    }
   }
 
   if (verified.violations.length > 0) {
@@ -288,7 +291,10 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
 
   for (const item of itemsView) {
     const commitList = item.commits.length > 0
-      ? item.commits.map((c) => `${linkedSha(links, c.repo, c.sha)} (${mdEscape(c.repo)})`).join(', ')
+      ? item.commits.map((c) => {
+          const label = `${linkedSha(links, c.repo, c.sha)} (${mdEscape(c.repo)}${isV2 && (c as ItemLink).attribution === 'indeterminate' ? ', indeterminate' : ''})`;
+          return label;
+        }).join(', ')
       : '—';
     const finding = item.findings.includes('item-without-commits')
       ? 'item\\-without\\-commits'

@@ -107,6 +107,25 @@ describe('summarise and decideVerdict', () => {
     expect(s.indeterminateItems).toBe(1);
   });
 
+  it('excludes ignored commits from indeterminate count', () => {
+    const mixedCommits: CommitResult[] = [
+      { repo: 'repo-a', sha: 'd', subject: 's', body: '', author: 'd', committedAt: 't', ignored: null, references: [], findings: [], attribution: 'indeterminate' },
+      { repo: 'repo-a', sha: 'e', subject: 's', body: '', author: 'dependabot[bot]', committedAt: 't', ignored: { rule: 'authors:dependabot[bot]' }, references: [], findings: [], attribution: 'indeterminate' },
+    ];
+    const s = summarise({ commits: mixedCommits, items, ranges });
+    expect(s.indeterminateCommits).toBe(1);
+  });
+
+  it('counts itemsLinked only for items with determinate links', () => {
+    const mixedItems: ItemResult[] = [
+      { id: 'PROJ-1', title: 't', type: 'story', status: 'done', commits: [{ repo: 'repo-a', sha: 'a', attribution: 'determinate' }], attribution: 'determinate', findings: [] },
+      { id: 'PROJ-2', title: 't', type: 'story', status: 'done', commits: [{ repo: 'repo-a', sha: 'd', attribution: 'indeterminate' }], attribution: 'indeterminate', findings: [] },
+      { id: 'PROJ-3', title: 't', type: 'story', status: 'done', commits: [], attribution: 'determinate', findings: ['item-without-commits'] }
+    ];
+    const s = summarise({ commits, items: mixedItems, ranges });
+    expect(s.itemsLinked).toBe(1);
+  });
+
   it('passes when failOn is empty', () => {
     expect(decideVerdict({ commits, items, ranges, policy: { failOn: [] } }).verdict).toBe('pass');
   });

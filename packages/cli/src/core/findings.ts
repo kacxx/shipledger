@@ -32,7 +32,7 @@ export function commitFindings(
 
 interface Findable { findings: FindingName[] }
 interface SummariseCommit extends Findable { ignored: { rule: string } | null }
-interface SummariseItem extends Findable { commits: unknown[] }
+interface SummariseItem extends Findable { commits: readonly unknown[] }
 interface Sets {
   commits: SummariseCommit[];
   items: SummariseItem[];
@@ -66,16 +66,21 @@ export function summariseV1(sets: Sets): SummaryV1 {
 
 interface Attributed { attribution: 'determinate' | 'indeterminate' }
 
+interface AttributedItem extends SummariseItem, Attributed {
+  commits: ReadonlyArray<{ attribution: 'determinate' | 'indeterminate' }>;
+}
+
 export function summarise(
   sets: {
     commits: Array<SummariseCommit & Attributed>;
-    items: Array<SummariseItem & Attributed>;
+    items: AttributedItem[];
     ranges: Findable[];
   }
 ): Summary {
   return {
     ...summariseCommon(sets),
-    indeterminateCommits: sets.commits.filter((c) => c.attribution === 'indeterminate').length,
+    itemsLinked: sets.items.filter((i) => i.commits.some((c) => c.attribution === 'determinate')).length,
+    indeterminateCommits: sets.commits.filter((c) => c.attribution === 'indeterminate' && c.ignored === null).length,
     indeterminateItems: sets.items.filter((i) => i.attribution === 'indeterminate').length
   };
 }
