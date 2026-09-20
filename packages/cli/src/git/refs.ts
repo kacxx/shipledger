@@ -2,6 +2,7 @@ import { existsSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { envError } from '../errors.js';
 import { gitOut, gitStatus } from './exec.js';
+import { effectiveDeltaFor } from './delta.js';
 import { isGitSha } from './sha.js';
 import type { RangeResult, RangeSpec } from '../types.js';
 
@@ -184,6 +185,7 @@ export function rangeFactsFor(
     mergeBase,
     baseIsAncestorOfHead,
     commitsOnlyInBase,
+    effectiveDelta: effectiveDeltaFor(baseSha, headSha, spec.include, spec.repo, repoPath),
     findings: baseIsAncestorOfHead ? [] : ['range-divergence']
   };
 }

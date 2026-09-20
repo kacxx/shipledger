@@ -6,7 +6,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { usageError } from '../errors.js';
-import type { Changeset, NotesFile, RawConfig, VerifiedChangeset } from '../types.js';
+import type {
+  Changeset, NotesFile, RawConfig, VerifiedChangeset, VerifiedChangesetV1, VerifiedChangesetV2
+} from '../types.js';
 
 const schemaDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'schemas');
 const read = (f: string): object => JSON.parse(readFileSync(join(schemaDir, f), 'utf8'));
@@ -38,7 +40,7 @@ ajv.addFormat('date-time', (value: string): boolean => {
   return true;
 });
 
-for (const file of ['config', 'changeset', 'verified-changeset', 'notes']) {
+for (const file of ['config', 'changeset', 'verified-changeset', 'verified-changeset-v2', 'notes']) {
   ajv.addSchema(read(`${file}.schema.json`));
 }
 
@@ -59,5 +61,23 @@ function run<T>(id: string, value: unknown, label: string): T {
 
 export const validateConfig = (v: unknown): RawConfig => run('config', v, 'config');
 export const validateChangeset = (v: unknown): Changeset => run('changeset', v, 'changeset');
-export const validateVerified = (v: unknown): VerifiedChangeset => run('verified-changeset', v, 'verified changeset');
+
+/**
+ * Version-routed: a verified changeset is validated against the schema for the
+ * version it declares. Only versions 1 and 2 are supported; any other value is a
+ * Shipledger usage error, not a silently-accepted shape (ADR 0008).
+ */
+export function validateVerified(v: unknown): VerifiedChangeset {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    throw usageError('verified changeset failed schema validation:\n  / must be an object');
+  }
+  const version = (v as { version?: unknown }).version;
+  if (version === 1) return run<VerifiedChangesetV1>('verified-changeset', v, 'verified changeset');
+  if (version === 2) return run<VerifiedChangesetV2>('verified-changeset-v2', v, 'verified changeset');
+  throw usageError(
+    `verified changeset declares unsupported version ${JSON.stringify(version)}. ` +
+    'Shipledger reads verified-changeset version 1 and 2 only.'
+  );
+}
+
 export const validateNotes = (v: unknown): NotesFile => run('notes', v, 'notes');

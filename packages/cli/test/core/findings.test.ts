@@ -47,41 +47,83 @@ describe('matchIgnoreRule', () => {
 
 describe('commitFindings', () => {
   it('flags no-reference for an empty reference list', () => {
-    expect(commitFindings([], false)).toEqual(['no-reference']);
+    expect(commitFindings([], false, false)).toEqual(['no-reference']);
   });
 
   it('flags unknown-reference when any resolvesTo is empty', () => {
-    expect(commitFindings([ref(['PROJ-1']), ref([])], false)).toEqual(['unknown-reference']);
+    expect(commitFindings([ref(['PROJ-1']), ref([])], false, false)).toEqual(['unknown-reference']);
   });
 
   it('returns nothing when every reference resolves', () => {
-    expect(commitFindings([ref(['PROJ-1'])], false)).toEqual([]);
+    expect(commitFindings([ref(['PROJ-1'])], false, false)).toEqual([]);
   });
 
   it('returns nothing for an ignored commit', () => {
-    expect(commitFindings([], true)).toEqual([]);
+    expect(commitFindings([], true, false)).toEqual([]);
+  });
+
+  it('returns nothing for a divergent commit even with no references', () => {
+    expect(commitFindings([], false, true)).toEqual([]);
+  });
+
+  it('returns nothing for a divergent commit even with unknown references', () => {
+    expect(commitFindings([ref(['PROJ-1']), ref([])], false, true)).toEqual([]);
   });
 });
 
 describe('summarise and decideVerdict', () => {
   const commits: CommitResult[] = [
-    { repo: 'repo-a', sha: 'a', subject: 's', body: '', author: 'd', committedAt: 't', ignored: null, references: [ref(['PROJ-1']), ref([])], findings: ['unknown-reference'] },
-    { repo: 'repo-a', sha: 'b', subject: 's', body: '', author: 'd', committedAt: 't', ignored: null, references: [], findings: ['no-reference'] },
-    { repo: 'repo-a', sha: 'c', subject: 's', body: '', author: 'd', committedAt: 't', ignored: { rule: 'authors:x' }, references: [], findings: [] }
+    { repo: 'repo-a', sha: 'a', subject: 's', body: '', author: 'd', committedAt: 't', ignored: null, references: [ref(['PROJ-1']), ref([])], findings: ['unknown-reference'], attribution: 'determinate' },
+    { repo: 'repo-a', sha: 'b', subject: 's', body: '', author: 'd', committedAt: 't', ignored: null, references: [], findings: ['no-reference'], attribution: 'determinate' },
+    { repo: 'repo-a', sha: 'c', subject: 's', body: '', author: 'd', committedAt: 't', ignored: { rule: 'authors:x' }, references: [], findings: [], attribution: 'determinate' }
   ];
   const items: ItemResult[] = [
-    { id: 'PROJ-1', title: 't', type: 'story', status: 'done', commits: [{ repo: 'repo-a', sha: 'a' }], findings: [] },
-    { id: 'PROJ-2', title: 't', type: 'story', status: 'done', commits: [], findings: ['item-without-commits'] }
+    { id: 'PROJ-1', title: 't', type: 'story', status: 'done', commits: [{ repo: 'repo-a', sha: 'a', attribution: 'determinate' }], attribution: 'determinate', findings: [] },
+    { id: 'PROJ-2', title: 't', type: 'story', status: 'done', commits: [], attribution: 'determinate', findings: ['item-without-commits'] }
   ];
   const ranges: RangeResult[] = [
-    { repo: 'repo-a', base: 'v1', baseSha: 'x', head: 'v2', headSha: 'y', include: [], mergeBase: 'z', baseIsAncestorOfHead: false, commitsOnlyInBase: 3, findings: ['range-divergence'] }
+    { repo: 'repo-a', base: 'v1', baseSha: 'x', head: 'v2', headSha: 'y', include: [], mergeBase: 'z', baseIsAncestorOfHead: false, commitsOnlyInBase: 3, findings: ['range-divergence'], effectiveDelta: [{ status: 'M', path: 'go.mod' }] }
   ];
 
   it('counts each category', () => {
     expect(summarise({ commits, items, ranges })).toEqual({
       items: 2, itemsLinked: 1, commits: 3, commitsIgnored: 1,
-      noReference: 1, unknownReference: 1, itemsWithoutCommits: 1, rangeDivergence: 1
+      noReference: 1, unknownReference: 1, itemsWithoutCommits: 1, rangeDivergence: 1,
+      indeterminateCommits: 0, indeterminateItems: 0
     });
+  });
+
+  it('counts indeterminate commits and items', () => {
+    const indeterminateCommits: CommitResult[] = [
+      { repo: 'repo-a', sha: 'd', subject: 's', body: '', author: 'd', committedAt: 't', ignored: null, references: [], findings: [], attribution: 'indeterminate' },
+      ...commits
+    ];
+    const indeterminateItems: ItemResult[] = [
+      { id: 'PROJ-3', title: 't', type: 'story', status: 'done', commits: [{ repo: 'repo-a', sha: 'd', attribution: 'indeterminate' }], attribution: 'indeterminate', findings: [] },
+      ...items
+    ];
+    const s = summarise({ commits: indeterminateCommits, items: indeterminateItems, ranges });
+    expect(s.indeterminateCommits).toBe(1);
+    expect(s.indeterminateItems).toBe(1);
+  });
+
+  it('excludes ignored commits from indeterminate count', () => {
+    const mixedCommits: CommitResult[] = [
+      { repo: 'repo-a', sha: 'd', subject: 's', body: '', author: 'd', committedAt: 't', ignored: null, references: [], findings: [], attribution: 'indeterminate' },
+      { repo: 'repo-a', sha: 'e', subject: 's', body: '', author: 'dependabot[bot]', committedAt: 't', ignored: { rule: 'authors:dependabot[bot]' }, references: [], findings: [], attribution: 'indeterminate' },
+    ];
+    const s = summarise({ commits: mixedCommits, items, ranges });
+    expect(s.indeterminateCommits).toBe(1);
+  });
+
+  it('counts itemsLinked only for items with determinate links', () => {
+    const mixedItems: ItemResult[] = [
+      { id: 'PROJ-1', title: 't', type: 'story', status: 'done', commits: [{ repo: 'repo-a', sha: 'a', attribution: 'determinate' }], attribution: 'determinate', findings: [] },
+      { id: 'PROJ-2', title: 't', type: 'story', status: 'done', commits: [{ repo: 'repo-a', sha: 'd', attribution: 'indeterminate' }], attribution: 'indeterminate', findings: [] },
+      { id: 'PROJ-3', title: 't', type: 'story', status: 'done', commits: [], attribution: 'determinate', findings: ['item-without-commits'] }
+    ];
+    const s = summarise({ commits, items: mixedItems, ranges });
+    expect(s.itemsLinked).toBe(1);
   });
 
   it('passes when failOn is empty', () => {
