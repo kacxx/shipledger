@@ -169,7 +169,14 @@ triage; `2` your input is wrong — fix the config or changeset; `3` environment
 the message names the remedy, and you must **not** fetch or check out on the
 user's behalf.
 
-## Step 4 — Triage the findings
+### Default stop point
+
+**Stop here.** Report the verdict (`pass` or the policy-violation summary from
+`render report`) and wait for the user. Steps 4 and 5 below run only when the
+user explicitly asks — e.g. "triage the findings", "render a changelog", "write
+the change request". Do not proceed automatically.
+
+## Step 4 — Triage the findings (on request)
 
 Triage is **all or nothing**. If you pass `--notes`, the file must account for
 every finding in the artifact — exactly one entry each, no entries for findings
@@ -219,7 +226,7 @@ Never classify it as benign without evidence — name the release it belongs to,
 flag it to the user. If you cannot classify something, say so and ask. A wrong
 classification in an audit artifact is worse than an open question.
 
-## Step 5 — Render the artifact
+## Step 5 — Render the artifact (on request)
 
 ```bash
 npx shipledger render changelog --input verified-changeset.json --notes notes.json
