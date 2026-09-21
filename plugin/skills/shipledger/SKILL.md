@@ -173,7 +173,7 @@ user's behalf.
 user, then wait:
 
 - **verdict** — `pass` or `fail`
-- **summary** — `items`, `itemsLinked`, `commits`, `noReference`,
+- **summary** — `items`, `itemsLinked`, `commits`, `commitsIgnored`, `noReference`,
   `unknownReference`, `itemsWithoutCommits`, `rangeDivergence`,
   `indeterminateCommits`, `indeterminateItems`
 - **violations** — each `{ finding, count }`, or "none" if empty
