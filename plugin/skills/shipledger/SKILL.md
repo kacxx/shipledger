@@ -12,12 +12,11 @@ description: >-
 ## What this skill does and does not do
 
 The CLI decides every match. It is deterministic and reproducible, and you must
-not second-guess it. Your job is the four things it cannot do:
+not second-guess it. Your job is the three things it cannot do:
 
 1. Build `changeset.json` from whatever tracker the user has.
 2. Declare every matchable identifier in `items[].tokens`.
 3. Confirm the ranges with the user.
-4. Triage the findings into `notes.json`.
 
 Never edit `verified-changeset.json`. Never claim a commit belongs to an item the
 CLI did not link.
@@ -161,15 +160,33 @@ commit — presenting that as a commit SHA is incorrect.
 
 ```bash
 npx shipledger check --config shipledger.config.json --changeset changeset.json --out verified-changeset.json
-npx shipledger render report --input verified-changeset.json
 ```
 
-Exit codes: `0` pass; `1` policy violation, which is an expected outcome to
-triage; `2` your input is wrong — fix the config or changeset; `3` environment —
+Exit codes: `0` pass; `1` policy violation, which is an expected result to
+report, then stop; `2` your input is wrong — fix the config or changeset; `3` environment —
 the message names the remedy, and you must **not** fetch or check out on the
 user's behalf.
 
-## Step 4 — Triage the findings
+### Default stop point
+
+**Stop here.** Read `verified-changeset.json` and report these fields to the
+user, then wait:
+
+- **verdict** — `pass` or `fail`
+- **summary** — `items`, `itemsLinked`, `commits`, `commitsIgnored`, `noReference`,
+  `unknownReference`, `itemsWithoutCommits`, `rangeDivergence`,
+  `indeterminateCommits`, `indeterminateItems`
+- **violations** — each `{ finding, count }`, or "none" if empty
+- **artifact path** — the `--out` path so the user knows where to find it
+
+Exit `1` still stops. A policy violation is a result to report, not a reason to
+auto-proceed into triage.
+
+Steps 4 and 5 below run only when the user explicitly asks — e.g. "triage the
+findings", "render a changelog", "write the change request". Do not proceed
+automatically.
+
+## Step 4 — Triage the findings (on request)
 
 Triage is **all or nothing**. If you pass `--notes`, the file must account for
 every finding in the artifact — exactly one entry each, no entries for findings
@@ -219,7 +236,7 @@ Never classify it as benign without evidence — name the release it belongs to,
 flag it to the user. If you cannot classify something, say so and ask. A wrong
 classification in an audit artifact is worse than an open question.
 
-## Step 5 — Render the artifact
+## Step 5 — Render the artifact (on request)
 
 ```bash
 npx shipledger render changelog --input verified-changeset.json --notes notes.json
