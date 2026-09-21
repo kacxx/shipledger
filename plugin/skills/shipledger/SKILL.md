@@ -162,8 +162,8 @@ commit — presenting that as a commit SHA is incorrect.
 npx shipledger check --config shipledger.config.json --changeset changeset.json --out verified-changeset.json
 ```
 
-Exit codes: `0` pass; `1` policy violation, which is an expected outcome to
-triage; `2` your input is wrong — fix the config or changeset; `3` environment —
+Exit codes: `0` pass; `1` policy violation, which is an expected result to
+report, then stop; `2` your input is wrong — fix the config or changeset; `3` environment —
 the message names the remedy, and you must **not** fetch or check out on the
 user's behalf.
 
