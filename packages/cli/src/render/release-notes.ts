@@ -1,3 +1,4 @@
+import { oneLine } from './text.js';
 import type { NotesFile, VerifiedChangeset } from '../types.js';
 
 /**
@@ -6,8 +7,10 @@ import type { NotesFile, VerifiedChangeset } from '../types.js';
  */
 const isIndeterminate = (i: { attribution?: string }): boolean => i.attribution === 'indeterminate';
 
+const entry = (i: { id: string; title: string }): string => `${oneLine(i.title)} (${oneLine(i.id)})`;
+
 export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFile): string {
-  const out: string[] = [`## ${verified.changeset.id}`, ''];
+  const out: string[] = [`## ${oneLine(verified.changeset.id)}`, ''];
 
   // `attribution` is absent on a v1 artifact, so v1 rendering is unchanged.
   const items = verified.items as Array<{
@@ -29,15 +32,15 @@ export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFil
   }
 
   for (const [type, items] of byType) {
-    out.push(`### ${type}`, '');
-    for (const item of items) out.push(`* ${item.title} (${item.id})`);
+    out.push(`### ${oneLine(type)}`, '');
+    for (const item of items) out.push(`* ${entry(item)}`);
     out.push('');
   }
 
   const indeterminate = items.filter(isIndeterminate);
   if (indeterminate.length > 0) {
     out.push('### attribution indeterminate (divergent range)', '');
-    for (const i of indeterminate) out.push(`* ${i.title} (${i.id})`);
+    for (const i of indeterminate) out.push(`* ${entry(i)}`);
     out.push('');
   }
 
@@ -51,12 +54,14 @@ export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFil
   const shippedInside = withoutCommits.filter((i) => viaOther.has(i.id));
   if (orphans.length > 0) {
     out.push('### claimed but not in git', '');
-    for (const i of orphans) out.push(`* ~${i.title}~ (${i.id})${i.status ? ` [${i.status}]` : ''}`);
+    for (const i of orphans) {
+      out.push(`* ~${oneLine(i.title)}~ (${oneLine(i.id)})${i.status ? ` [${oneLine(i.status)}]` : ''}`);
+    }
     out.push('');
   }
   if (shippedInside.length > 0) {
     out.push('### shipped inside another change (triaged, not verified against git)', '');
-    for (const i of shippedInside) out.push(`* ${i.title} (${i.id})`);
+    for (const i of shippedInside) out.push(`* ${entry(i)}`);
     out.push('');
   }
 

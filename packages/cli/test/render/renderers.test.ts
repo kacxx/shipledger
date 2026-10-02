@@ -309,6 +309,47 @@ describe('renderReport multiline safety', () => {
   });
 });
 
+describe('control characters in tracker and git text', () => {
+  // eslint-disable-next-line no-control-regex
+  const CONTROL = /[\x00-\x09\x0b-\x1f\x7f-\x9f]/;
+  const hostile: VerifiedChangeset = {
+    ...verified,
+    changeset: { ...verified.changeset, id: 'release\n# fake' },
+    items: verified.items.map((i) => i.id === 'PROJ-1'
+      ? { ...i, title: 'Add\x1b[2J\nPASS thing', type: 'story\nfake' }
+      : { ...i, title: 'Claimed\r\nabsent', status: 'in-progress\x07' }),
+    commits: verified.commits.map((c) =>
+      c.sha.startsWith('cccc') ? { ...c, subject: 'tidy\x1b]0;t\x07 up' } : c
+    )
+  };
+
+  it('keeps release-notes entries on one line with no control characters', () => {
+    const text = renderReleaseNotes(hostile, notes);
+    expect(text).not.toMatch(CONTROL);
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('## release # fake');
+    expect(lines).toContain('### story fake');
+    expect(lines).toContain('* Add?[2J PASS thing (PROJ-1)');
+    expect(lines).toContain('* ~Claimed absent~ (PROJ-2) [in-progress?]');
+  });
+
+  it('keeps changelog entries on one line with no control characters', () => {
+    const text = renderChangelog(hostile, notes);
+    expect(text).not.toMatch(CONTROL);
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('# release # fake');
+    expect(lines).toContain('- **PROJ-1** Add?[2J PASS thing (2 commits)');
+    expect(lines.some((l) => l.includes('tidy?]0;t? up'))).toBe(true);
+    expect(lines.some((l) => l.startsWith('- **PROJ-2** Claimed absent [in-progress?]'))).toBe(true);
+  });
+
+  it('strips control characters from report cells', () => {
+    const text = renderReport(hostile, notes);
+    expect(text).not.toMatch(CONTROL);
+    expect(text).toContain('Add?\\[2J PASS thing');
+  });
+});
+
 describe('renderReport multi-repo', () => {
   const text = renderReport(multiRepo);
 
