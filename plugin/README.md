@@ -16,7 +16,9 @@ into `~/.cursor/skills/`.
 
 ## CLI compatibility
 
-`cli-compatibility.json` declares the CLI range this skill was written against.
+`skills/shipledger/cli-compatibility.json` declares the CLI range this skill was
+written against. It lives inside the skill directory so it travels with the
+symlinked skill.
 The skill passes it to `shipledger doctor --skill-cli-range`, which fails before
 a release is checked if the installed CLI does not satisfy it. Pin explicitly
 with `npx shipledger@<version>` when you need to.

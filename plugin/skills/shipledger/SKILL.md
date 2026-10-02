@@ -23,7 +23,10 @@ CLI did not link.
 
 ## Step 0 — Check compatibility and environment
 
-Read `cliRange` from `plugin/cli-compatibility.json` and pass it through:
+Read `cliRange` from `cli-compatibility.json` in this skill's own directory (next
+to this file, not the user's repository) and pass it through. `shipledger
+--version` prints the installed version; `shipledger identity` adds the build
+digest.
 
 ```bash
 npx shipledger doctor --config shipledger.config.json --skill-cli-range '^0.2.0'
@@ -53,7 +56,33 @@ about which matchers, ignore rules, or policies apply.
 
 Fetch the claimed release from the user's tracker using whatever is available —
 an MCP server, a CLI such as `gh`, or a pasted export. Then write
-`changeset.json`.
+`changeset.json`. A complete changeset looks like this (`init` also writes a
+`changeset.example.json`):
+
+```json
+{
+  "version": 1,
+  "id": "v1.4.0 milestone",
+  "source": {
+    "kind": "github-milestone",
+    "ref": "https://github.com/example/repo-a/milestone/7",
+    "fetchedAt": "2026-09-01T01:00:00Z"
+  },
+  "items": [
+    {
+      "id": "example/repo-a#100",
+      "title": "Handle empty range gracefully",
+      "type": "issue",
+      "status": "closed",
+      "tokens": [
+        { "matcher": "pr-ref", "token": "#100", "repo": "repo-a" },
+        { "matcher": "pr-ref", "token": "#123", "repo": "repo-a" }
+      ]
+    }
+  ],
+  "ranges": [{ "repo": "repo-a", "base": "v1.3.0", "head": "v1.4.0" }]
+}
+```
 
 - `source` is mandatory: `kind`, `ref` (the exact query or URL), `fetchedAt`.
 - **`fetchedAt` is the actual UTC time the provider response was received**, not
@@ -64,20 +93,8 @@ an MCP server, a CLI such as `gh`, or a pasted export. Then write
 - **`id` is opaque identity and is never matched against git.** Every identifier
   that might appear in a commit goes in `tokens` — including the item's own
   primary key or issue number. An item with no tokens is a schema error.
-- Each token names its `matcher` and, for a repo-namespaced matcher, its `repo`:
-
-```json
-{
-  "id": "example/repo-a#100",
-  "title": "Handle empty range gracefully",
-  "type": "issue",
-  "status": "closed",
-  "tokens": [
-    { "matcher": "pr-ref", "token": "#100", "repo": "repo-a" },
-    { "matcher": "pr-ref", "token": "#123", "repo": "repo-a" }
-  ]
-}
-```
+- Each token names its `matcher` and, for a repo-namespaced matcher, its `repo`,
+  as in the item above.
 
 - This is the second hop: when a squash-merge subject carries a pull request
   number rather than an issue number, the token list is the only thing that

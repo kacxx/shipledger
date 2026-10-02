@@ -6,6 +6,7 @@ import { runDoctor } from './doctor.js';
 import { runIdentity } from './identity.js';
 import { runInit } from './init.js';
 import { runRender } from './render.js';
+import { CLI_VERSION } from './version.js';
 
 function usage(): string {
   return [
@@ -18,6 +19,10 @@ function usage(): string {
     '  render   <report|changelog|release-notes> --input <path> [--notes <path>]',
     '           [--verify-against-repos --config <path>]',
     '  identity  print the CLI build identity (version, embedded commit, runtime digest) as JSON',
+    '',
+    'Options:',
+    '  --help, -h     print this help',
+    '  --version, -v  print the CLI version',
     ''
   ].join('\n');
 }
@@ -35,6 +40,10 @@ export async function main(argv: string[]): Promise<number> {
       return runRender(rest, process.cwd());
     case 'identity':
       return runIdentity(rest);
+    case '--version':
+    case '-v':
+      process.stdout.write(`shipledger ${CLI_VERSION}\n`);
+      return 0;
     case undefined:
     case '--help':
     case '-h':
