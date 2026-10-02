@@ -204,7 +204,7 @@ The output is **one canonical list of commits** carrying their references and fi
 }
 ```
 
-The verified artifact is self-contained renderer input. It records the resolved preset and history mode; preserves changeset source and item metadata; records each range's path scope; and retains every commit field a matcher can read. Ignored commits stay in `commits` with `ignored` set to the rule that excluded them, rather than moving to a separate array. One canonical list means nothing can be dropped by omission.
+The verified artifact is self-contained renderer input. It records the resolved preset and history mode; preserves changeset source and item metadata; records each range's path scope; and retains every commit field a matcher can read. Ignored commits stay in `commits` with `ignored` set to the rule that matched them, rather than moving to a separate array. One canonical list means nothing can be dropped by omission.
 
 ### `notes.json` — optional, produced by the agent's triage
 
@@ -252,7 +252,7 @@ Findings are then derived from that, and **they are not mutually exclusive**:
 
 The critical property is that `unknown-reference` is independent of linkage. A commit reading `PROJ-42, PROJ-99` where only `PROJ-42` is in the release is *both* linked to `PROJ-42` and carrying an unknown reference to `PROJ-99`. An earlier version of this design used mutually exclusive buckets, which would have linked that commit and discarded the `PROJ-99` signal entirely — losing exactly the orphan-detection the tool exists for, while still reporting success.
 
-Ignored commits are excluded from matching but remain in the output with the rule that excluded them. An audit artifact that quietly discards commits is worse than no artifact.
+Ignored commits remain in the output with the rule that matched them. An audit artifact that quietly discards commits is worse than no artifact. An ignore rule waives the need for a claim, not the commit's evidence: references are still extracted and resolved, so an ignored commit links to any item that claims it, but it never emits `no-reference` or `unknown-reference`. Before 0.3.0, ignored commits were excluded from matching entirely, so a release that explicitly claimed, say, a dependabot pull request reported that item as `item-without-commits` even though it shipped.
 
 **Range validation.** For each range the tool resolves `baseSha` and `headSha` once, computes the merge-base, records whether base is an ancestor of head, and walks those immutable SHAs — never the mutable ref names after resolution. When base is not an ancestor of head, `git log baseSha..headSha` is asymmetric: commits reachable from base and not head are invisible. That case emits `range-divergence` carrying the merge-base and the count of commits only in base. Both built-in presets fail on it by default; an adopter with deliberately divergent release branches may waive it in committed policy. What is not acceptable is computing an accidental asymmetric answer and reporting success.
 

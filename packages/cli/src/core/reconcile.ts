@@ -42,11 +42,9 @@ export function reconcile(input: ReconcileInput): VerifiedChangesetV2 {
       author: commit.author, committedAt: commit.committedAt
     };
 
+    // An ignore rule waives the need for a claim, not the commit's evidence: an
+    // ignored commit still links to items that claim it, but raises no finding.
     const rule = matchIgnoreRule(commit, compiled.ignore);
-    if (rule !== null) {
-      return { ...base, attribution, ignored: { rule }, references: [], findings: [] };
-    }
-
     const { references, links } = resolveReferences(
       extractReferences(commit, compiled.matchers), commit.repo, index
     );
@@ -61,8 +59,8 @@ export function reconcile(input: ReconcileInput): VerifiedChangesetV2 {
       }
     }
     return {
-      ...base, attribution, ignored: null, references,
-      findings: commitFindings(references, false, divergent)
+      ...base, attribution, ignored: rule === null ? null : { rule }, references,
+      findings: commitFindings(references, rule !== null, divergent)
     };
   });
 
