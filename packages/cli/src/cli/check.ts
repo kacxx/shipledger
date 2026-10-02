@@ -53,8 +53,13 @@ export function runCheck(argv: string[], cwd: string): number {
     });
 
     writeAtomic(resolve(cwd, values.out), `${canonicalStringify(verified)}\n`);
-    process.stderr.write(renderCheckSummary(verified, values.out));
-    return verified.verdict === 'pass' ? 0 : 1;
+    const code = verified.verdict === 'pass' ? 0 : 1;
+    try {
+      process.stderr.write(renderCheckSummary(verified, values.out));
+    } catch {
+      // The summary is a courtesy; the artifact and exit code are the result.
+    }
+    return code;
   } catch (err) {
     const { code, message } = toExitCode(err);
     process.stderr.write(`${message}\n`);

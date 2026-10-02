@@ -97,6 +97,13 @@ describe('runCheck', () => {
     ].join('\n'));
   });
 
+  it('keeps the verdict exit code when the summary cannot be written', () => {
+    const s = scenario({ subjects: ['PROJ-9 fix'], items: [item('PROJ-1', 'PROJ-1')], failOn: ['unknown-reference'] });
+    vi.mocked(process.stderr.write).mockImplementation(() => { throw new Error('EPIPE'); });
+    expect(runCheck(s.args, process.cwd())).toBe(1);
+    expect(JSON.parse(readFileSync(s.out, 'utf8')).verdict).toBe('fail');
+  });
+
   it('exits 2 when the preset is unpinned', () => {
     const s = scenario({ subjects: ['x'], items: [], preset: 'tracker-keys' });
     expect(runCheck(s.args, process.cwd())).toBe(2);

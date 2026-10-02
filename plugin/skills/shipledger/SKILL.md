@@ -162,6 +162,10 @@ commit — presenting that as a commit SHA is incorrect.
 npx shipledger check --config shipledger.config.json --changeset changeset.json --out verified-changeset.json
 ```
 
+`check` also prints a short human summary to stderr: a `PASS`/`FAIL` line with
+the violations and counts, then one line per finding (capped at 20). It is a
+convenience for the operator; report from the artifact, which is the record.
+
 Exit codes: `0` pass; `1` policy violation, which is an expected result to
 report, then stop; `2` your input is wrong — fix the config or changeset; `3` environment —
 the message names the remedy, and you must **not** fetch or check out on the
