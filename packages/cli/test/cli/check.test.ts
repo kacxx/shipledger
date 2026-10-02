@@ -72,6 +72,29 @@ describe('runCheck', () => {
     expect(out.violations[0].finding).toBe('unknown-reference');
   });
 
+  it('prints a PASS summary to stderr and nothing to stdout', () => {
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const s = scenario({ subjects: ['PROJ-1 fix'], items: [item('PROJ-1', 'PROJ-1')] });
+    expect(runCheck(s.args, process.cwd())).toBe(0);
+    const printed = vi.mocked(process.stderr.write).mock.calls.map((c) => String(c[0])).join('');
+    expect(printed).toBe(`PASS  release 1.4.0  items linked 1/1, commits 1, ignored 0\nWrote ${s.out}\n`);
+    expect(stdout).not.toHaveBeenCalled();
+  });
+
+  it('prints a FAIL summary naming each finding', () => {
+    const s = scenario({ subjects: ['PROJ-9 fix'], items: [item('PROJ-1', 'PROJ-1')], failOn: ['unknown-reference'] });
+    expect(runCheck(s.args, process.cwd())).toBe(1);
+    const sha = JSON.parse(readFileSync(s.out, 'utf8')).commits[0].sha.slice(0, 7);
+    const printed = vi.mocked(process.stderr.write).mock.calls.map((c) => String(c[0])).join('');
+    expect(printed).toBe([
+      'FAIL  release 1.4.0  unknown-reference=1; items linked 0/1, commits 1, ignored 0',
+      `  unknown-reference  repo-a ${sha}  PROJ-9 fix`,
+      '  item-without-commits  PROJ-1  t',
+      `Wrote ${s.out}`,
+      ''
+    ].join('\n'));
+  });
+
   it('exits 2 when the preset is unpinned', () => {
     const s = scenario({ subjects: ['x'], items: [], preset: 'tracker-keys' });
     expect(runCheck(s.args, process.cwd())).toBe(2);
