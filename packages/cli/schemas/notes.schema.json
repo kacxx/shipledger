@@ -19,7 +19,7 @@
         "properties": {
           "repo": { "type": "string", "minLength": 1 },
           "sha": { "$ref": "#/definitions/sha" },
-          "classification": { "enum": ["revert", "dependency-bump", "hotfix-already-released", "tooling-or-ci", "process-miss"] },
+          "classification": { "enum": ["revert", "dependency-bump", "hotfix-already-released", "tooling-or-ci", "process-miss", "security-advisory"] },
           "impact": { "enum": ["test-only", "no-runtime-impact"] },
           "note": { "$ref": "#/definitions/note" }
         }
@@ -50,7 +50,7 @@
         "required": ["item", "classification", "note"],
         "properties": {
           "item": { "type": "string", "minLength": 1 },
-          "classification": { "enum": ["configuration-only", "documentation-only", "landed-earlier", "wrongly-tagged", "not-done"] },
+          "classification": { "enum": ["configuration-only", "documentation-only", "landed-earlier", "wrongly-tagged", "not-done", "merged-via-another-change"] },
           "impact": { "enum": ["test-only", "no-runtime-impact"] },
           "note": { "$ref": "#/definitions/note" }
         }
