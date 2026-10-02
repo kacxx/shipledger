@@ -4,7 +4,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkCliRange } from '../src/cli/doctor.js';
 import { CLI_VERSION } from '../src/cli/version.js';
-import { validateChangeset } from '../src/config/validate.js';
+import { validateChangeset, validateConfig } from '../src/config/validate.js';
+import { mergeConfig, assertConfigIdentities } from '../src/config/load.js';
+import { assertChangesetAgainstConfig } from '../src/config/changeset.js';
 import { NO_REFERENCE_CLASSIFICATIONS, UNKNOWN_REFERENCE_CLASSIFICATIONS, ITEM_CLASSIFICATIONS, RANGE_CLASSIFICATIONS } from '../src/types.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -49,6 +51,12 @@ describe('cli compatibility declaration', () => {
   it('is satisfied by the current CLI version', () => {
     expect(checkCliRange(cliRange, CLI_VERSION)).toEqual({ ok: true, compatible: true });
   });
+
+  it('matches every --skill-cli-range example in the skill', () => {
+    const shown = [...readFileSync(skill, 'utf8').matchAll(/--skill-cli-range '([^']*)'/g)].map((m) => m[1]);
+    expect(shown.length).toBeGreaterThan(0);
+    for (const range of shown) expect(range).toBe(cliRange);
+  });
 });
 
 describe('skill documents the real contracts', () => {
@@ -77,11 +85,20 @@ describe('skill documents the real contracts', () => {
     expect(text).toMatch(/omit `--notes`/i);
   });
 
-  it('shows a complete, schema-valid changeset in Step 1', () => {
+  it('shows the github-oss example changeset in Step 1, and it checks against that config', () => {
     const step1 = text.slice(text.indexOf('## Step 1'), text.indexOf('## Step 2'));
     const block = /```json\r?\n([\s\S]*?)```/.exec(step1);
     expect(block).not.toBeNull();
-    expect(() => validateChangeset(JSON.parse(block![1]!))).not.toThrow();
+    const shown = JSON.parse(block![1]!);
+
+    const dir = join(root, 'examples', 'github-oss');
+    const example = JSON.parse(readFileSync(join(dir, 'changeset.json'), 'utf8'));
+    for (const i of example.items) delete i.url;
+    expect(shown).toEqual(example);
+
+    const config = mergeConfig(validateConfig(JSON.parse(readFileSync(join(dir, 'shipledger.config.json'), 'utf8'))), dir);
+    assertConfigIdentities(config);
+    expect(() => assertChangesetAgainstConfig(validateChangeset(shown), config)).not.toThrow();
   });
 
   it('states that item id is not matchable', () => {

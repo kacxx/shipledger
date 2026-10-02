@@ -21,6 +21,7 @@ function usage(): string {
     '  identity  print the CLI build identity (version, embedded commit, runtime digest) as JSON',
     '',
     'Options:',
+    '  --help, -h     print this help',
     '  --version, -v  print the CLI version',
     ''
   ].join('\n');
