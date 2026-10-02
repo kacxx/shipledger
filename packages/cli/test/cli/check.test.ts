@@ -75,6 +75,7 @@ describe('runCheck', () => {
   it('prints a PASS summary to stderr and nothing to stdout', () => {
     const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     const s = scenario({ subjects: ['PROJ-1 fix'], items: [item('PROJ-1', 'PROJ-1')] });
+    vi.mocked(process.stderr.write).mockClear();
     expect(runCheck(s.args, process.cwd())).toBe(0);
     const printed = vi.mocked(process.stderr.write).mock.calls.map((c) => String(c[0])).join('');
     expect(printed).toBe(`PASS  release 1.4.0  items linked 1/1, commits 1, ignored 0\nWrote ${s.out}\n`);
@@ -83,6 +84,7 @@ describe('runCheck', () => {
 
   it('prints a FAIL summary naming each finding', () => {
     const s = scenario({ subjects: ['PROJ-9 fix'], items: [item('PROJ-1', 'PROJ-1')], failOn: ['unknown-reference'] });
+    vi.mocked(process.stderr.write).mockClear();
     expect(runCheck(s.args, process.cwd())).toBe(1);
     const sha = JSON.parse(readFileSync(s.out, 'utf8')).commits[0].sha.slice(0, 7);
     const printed = vi.mocked(process.stderr.write).mock.calls.map((c) => String(c[0])).join('');
