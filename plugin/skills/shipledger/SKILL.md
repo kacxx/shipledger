@@ -137,7 +137,24 @@ the default branch does, and its subject carries only its own number. The CLI is
 right to report the claimed PR as `item-without-commits`; do not change
 `history` to hide it.
 
-Resolve it from forge evidence:
+Start with one pass over every `item-without-commits` item before tracing any
+chain. Read each PR's base branch and merge commit together:
+
+```bash
+for n in 101 102 103; do gh pr view "$n" --json number,baseRefName,mergeCommit; done
+git log --first-parent --format='%H %s' <base>..<head>
+```
+
+Then sort each item by where its merge commit is:
+
+- **On the range's first-parent path, under another PR's subject:** the variant
+  described below. Containment is direct whatever the base branch says, and
+  items from one stack often share this commit, so resolve them together.
+- **Not on that path, with a base branch that is another PR's head branch:**
+  stacked. Follow the steps below.
+- **Neither:** probably not stacked. Triage the item.
+
+Resolve the stacked items from forge evidence:
 
 1. Read the PR's base branch and merge commit from the forge API (for example
    `gh pr view 123 --json baseRefName,mergeCommit`). A base branch that is
