@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkCliRange } from '../src/cli/doctor.js';
 import { CLI_VERSION } from '../src/cli/version.js';
+import { validateChangeset } from '../src/config/validate.js';
 import { NO_REFERENCE_CLASSIFICATIONS, UNKNOWN_REFERENCE_CLASSIFICATIONS, ITEM_CLASSIFICATIONS, RANGE_CLASSIFICATIONS } from '../src/types.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -39,7 +40,7 @@ describe('skill frontmatter', () => {
 });
 
 describe('cli compatibility declaration', () => {
-  const { cliRange } = JSON.parse(readFileSync(join(plugin, 'cli-compatibility.json'), 'utf8'));
+  const { cliRange } = JSON.parse(readFileSync(join(plugin, 'skills', 'shipledger', 'cli-compatibility.json'), 'utf8'));
 
   it('is a range this CLI can interpret', () => {
     expect(checkCliRange(cliRange, CLI_VERSION).ok).toBe(true);
@@ -74,6 +75,13 @@ describe('skill documents the real contracts', () => {
   it('states the all-or-nothing coverage rule and the untriaged escape hatch', () => {
     expect(text).toMatch(/all or nothing/i);
     expect(text).toMatch(/omit `--notes`/i);
+  });
+
+  it('shows a complete, schema-valid changeset in Step 1', () => {
+    const step1 = text.slice(text.indexOf('## Step 1'), text.indexOf('## Step 2'));
+    const block = /```json\r?\n([\s\S]*?)```/.exec(step1);
+    expect(block).not.toBeNull();
+    expect(() => validateChangeset(JSON.parse(block![1]!))).not.toThrow();
   });
 
   it('states that item id is not matchable', () => {
