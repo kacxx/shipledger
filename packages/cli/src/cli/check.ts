@@ -9,6 +9,7 @@ import { walkRange } from '../git/log.js';
 import { reconcile } from '../core/reconcile.js';
 import { canonicalStringify } from '../core/canonical.js';
 import { writeAtomic } from '../io/atomic.js';
+import { renderCheckSummary } from '../render/check-summary.js';
 import { CLI_VERSION } from './version.js';
 import type { CommitRecord, RangeResult } from '../types.js';
 
@@ -52,7 +53,13 @@ export function runCheck(argv: string[], cwd: string): number {
     });
 
     writeAtomic(resolve(cwd, values.out), `${canonicalStringify(verified)}\n`);
-    return verified.verdict === 'pass' ? 0 : 1;
+    const code = verified.verdict === 'pass' ? 0 : 1;
+    try {
+      process.stderr.write(renderCheckSummary(verified, values.out));
+    } catch {
+      // The summary is a courtesy; the artifact and exit code are the result.
+    }
+    return code;
   } catch (err) {
     const { code, message } = toExitCode(err);
     process.stderr.write(`${message}\n`);
