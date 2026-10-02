@@ -156,7 +156,10 @@ Then sort each item by where its merge commit is:
   often share this commit, so resolve them together.
 - **On that path, under a subject with no PR reference** (a plain `Merge branch`
   merge, or a direct push): the work shipped, but no token can link it. Triage
-  the item as `merged-via-another-change` and name the commit in the note.
+  the item as `merged-via-another-change` and name the commit in the note. Unless
+  an ignore rule matched it, that commit also carries its own `no-reference`
+  finding; classify it as `process-miss` with a note naming the PR, so both
+  entries describe the same event.
 - **Not on that path, with a base branch that is another PR's head branch:**
   stacked. Follow the steps below.
 - **None of these:** not stacked (a PR closed without merging has no merge
@@ -176,8 +179,17 @@ Resolve the stacked items from forge evidence:
    parent, `git merge-base --is-ancestor <child merge commit> <parent merge
    commit>` also works. If containment fails, triage the item instead. In a
    stack merged with merge commits, a child merge commit that is an ancestor of
-   `headSha` but not of `baseSha` is already in this release; trace the chain
-   only to find the PR whose number becomes the token.
+   `headSha` but not of `baseSha` is already in this release. The PR that
+   brought it in is the oldest first-parent commit in range that contains it,
+   which may not be the PR the child was opened against:
+
+   ```bash
+   for c in $(git rev-list --first-parent --reverse <baseSha>..<headSha>); do
+     git merge-base --is-ancestor <child merge commit> "$c" && { git log -1 --format='%H %s' "$c"; break; }
+   done
+   ```
+
+   Use that commit's PR number as the token, and skip steps 3 and 4.
 3. Follow the chain to the PR that reached the default branch, confirming
    containment at each hop, and add that PR's number as a token on the claimed
    item. Several stacked items may share one token; the one commit then links all
@@ -314,8 +326,9 @@ Two classifications need evidence in the note:
   design. Name the advisory the release claims in the note. Never add an ignore
   rule for these commits: that would hide security changes from the artifact.
 - **`merged-via-another-change`** is for a claimed item whose work reached the
-  default branch inside another change that no token can link (see "Stacked and
-  feature-branch pull requests" above). Name that change in the note.
+  default branch in a commit that no token can link: inside another change, or
+  pushed directly without its own reference (see "Stacked and feature-branch pull
+  requests" above). Name that commit or change in the note.
 
 An `unknownReference` entry names the full reference tuple rather than just the
 commit, so two unknown references on one commit take separate dispositions. Reuse
