@@ -41,18 +41,32 @@ export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFil
     out.push('');
   }
 
-  const orphans = items.filter((i) => i.findings.includes('item-without-commits'));
+  // Triage says these shipped inside another change, but git cannot confirm it, so
+  // they are listed apart from both shipped work and work with no code.
+  const viaOther = new Set(
+    (notes?.items ?? []).filter((n) => n.classification === 'merged-via-another-change').map((n) => n.item)
+  );
+  const withoutCommits = items.filter((i) => i.findings.includes('item-without-commits'));
+  const orphans = withoutCommits.filter((i) => !viaOther.has(i.id));
+  const shippedInside = withoutCommits.filter((i) => viaOther.has(i.id));
   if (orphans.length > 0) {
     out.push('### claimed but not in git', '');
     for (const i of orphans) out.push(`* ~${i.title}~ (${i.id})${i.status ? ` [${i.status}]` : ''}`);
     out.push('');
   }
+  if (shippedInside.length > 0) {
+    out.push('### shipped inside another change (triaged, not verified against git)', '');
+    for (const i of shippedInside) out.push(`* ${i.title} (${i.id})`);
+    out.push('');
+  }
 
   const s = verified.summary;
   const caveats: string[] = [];
+  const noCode = s.itemsWithoutCommits - shippedInside.length;
   if (s.unknownReference > 0) caveats.push(`${s.unknownReference} commit(s) reference other releases`);
   if (s.noReference > 0) caveats.push(`${s.noReference} unreferenced`);
-  if (s.itemsWithoutCommits > 0) caveats.push(`${s.itemsWithoutCommits} claimed with no code`);
+  if (noCode > 0) caveats.push(`${noCode} claimed with no code`);
+  if (shippedInside.length > 0) caveats.push(`${shippedInside.length} triaged as shipped inside another change`);
   if ('indeterminateItems' in s && s.indeterminateItems > 0) {
     caveats.push(`${s.indeterminateItems} item(s) with indeterminate attribution`);
   }

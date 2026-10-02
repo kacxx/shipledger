@@ -336,6 +336,14 @@ describe('schema classification vocabulary', () => {
       items: [{ item: 'PROJ-2', classification: 'merged-via-another-change', note: 'merged into the feature branch' }]
     })).not.toThrow();
   });
+
+  it('accepts security-advisory and merged-via-another-change in version 2 notes with impact', () => {
+    expect(() => validateNotes({
+      version: 2,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'security-advisory', impact: 'no-runtime-impact', note: 'fix for advisory GHSA-xxxx-xxxx-xxxx' }],
+      items: [{ item: 'PROJ-2', classification: 'merged-via-another-change', impact: 'test-only', note: 'merged into the feature branch' }]
+    })).not.toThrow();
+  });
 });
 
 describe('schema gates impact to version 2', () => {
