@@ -138,21 +138,29 @@ right to report the claimed PR as `item-without-commits`; do not change
 `history` to hide it.
 
 Start with one pass over every `item-without-commits` item before tracing any
-chain. Read each PR's base branch and merge commit together:
+chain. Read each PR's base branch and merge commit together, and list the
+commits `check` walked. Do this per repo: look PRs up in the item's own repo,
+and take `baseSha` and `headSha` from that repo's range in
+`verified-changeset.json`, not the ref names, which may have moved since
+`check` ran. Drop `--first-parent` when the artifact's `history` is `all`:
 
 ```bash
-for n in 101 102 103; do gh pr view "$n" --json number,baseRefName,mergeCommit; done
-git log --first-parent --format='%H %s' <base>..<head>
+for n in 101 102 103; do gh pr view "$n" -R <owner>/<repo> --json number,baseRefName,mergeCommit; done
+git log --first-parent --format='%H %s' <baseSha>..<headSha>
 ```
 
 Then sort each item by where its merge commit is:
 
-- **On the range's first-parent path, under another PR's subject:** the variant
-  described below. Containment is direct whatever the base branch says, and
-  items from one stack often share this commit, so resolve them together.
+- **On that path, under another PR's subject:** the variant described below.
+  Containment is direct whatever the base branch says, and items from one stack
+  often share this commit, so resolve them together.
+- **On that path, under a subject with no PR reference** (a plain `Merge branch`
+  merge, or a direct push): the work shipped, but no token can link it. Triage
+  the item as `merged-via-another-change` and name the commit in the note.
 - **Not on that path, with a base branch that is another PR's head branch:**
   stacked. Follow the steps below.
-- **Neither:** probably not stacked. Triage the item.
+- **None of these:** not stacked (a PR closed without merging has no merge
+  commit). Triage the item.
 
 Resolve the stacked items from forge evidence:
 
@@ -166,7 +174,10 @@ Resolve the stacked items from forge evidence:
    child's merge commit is one of the parent PR's commits (`gh pr view <parent>
    --json commits`), which holds for every merge method; for a merge-commit
    parent, `git merge-base --is-ancestor <child merge commit> <parent merge
-   commit>` also works. If containment fails, triage the item instead.
+   commit>` also works. If containment fails, triage the item instead. In a
+   stack merged with merge commits, a child merge commit that is an ancestor of
+   `headSha` but not of `baseSha` is already in this release; trace the chain
+   only to find the PR whose number becomes the token.
 3. Follow the chain to the PR that reached the default branch, confirming
    containment at each hop, and add that PR's number as a token on the claimed
    item. Several stacked items may share one token; the one commit then links all
