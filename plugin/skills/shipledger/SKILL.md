@@ -29,7 +29,7 @@ to this file, not the user's repository) and pass it through. `shipledger
 digest.
 
 ```bash
-npx shipledger doctor --config shipledger.config.json --skill-cli-range '^0.3.0'
+npx shipledger doctor --config shipledger.config.json --skill-cli-range '^0.3.1'
 ```
 
 Exit 3 on an incompatible or uninterpretable range means stop and tell the user
@@ -129,6 +129,44 @@ each PR token you declared, confirm two things:
    resolution. Find a second signal (ticket key in the commit subject, forge API
    link between the PR and the item) or remove the token.
 
+### Stacked and feature-branch pull requests
+
+A claimed PR merged into another PR's branch, rather than the default branch, has
+no commit of its own on the first-parent path. Only the PR that finally reached
+the default branch does, and its subject carries only its own number. The CLI is
+right to report the claimed PR as `item-without-commits`; do not change
+`history` to hide it.
+
+Resolve it from forge evidence:
+
+1. Read the PR's base branch and merge commit from the forge API (for example
+   `gh pr view 123 --json baseRefName,mergeCommit`). A base branch that is
+   another PR's head branch is the forge link the second-signal rule asks for.
+   The child's merge commit is the commit made on that parent branch.
+2. Confirm the child's work is contained in the parent's merge. A shared base
+   branch is not enough: a child merged into the parent's branch *after* the
+   parent reached the default branch never shipped with it. Check that the
+   child's merge commit is one of the parent PR's commits (`gh pr view <parent>
+   --json commits`), which holds for every merge method; for a merge-commit
+   parent, `git merge-base --is-ancestor <child merge commit> <parent merge
+   commit>` also works. If containment fails, triage the item instead.
+3. Follow the chain to the PR that reached the default branch, confirming
+   containment at each hop, and add that PR's number as a token on the claimed
+   item. Several stacked items may share one token; the one commit then links all
+   of them.
+4. Re-run `check` and confirm the parent's merge commit is in range. If it is
+   not, the work landed in another release; triage it rather than keep the token.
+
+A variant needs no chain: a PR whose base is the default branch but whose commits
+reached it inside another PR first. The forge then records that other PR's merge
+commit as this PR's merge commit, so containment is direct; add the other PR's
+number as the token after confirming that commit is in range.
+
+When the chain ends in a commit that carries no reference (for example a plain
+`Merge branch` merge of a feature branch, which the preset ignores), no token can
+link it. Triage the item as `merged-via-another-change` and name the branch or
+commit in the note.
+
 ## Step 2 — Confirm the ranges
 
 Do not invent `base` and `head`. Propose them and get confirmation:
@@ -220,9 +258,9 @@ nothing else:
 
 | Section | Identifies a finding by | Allowed classifications |
 | --- | --- | --- |
-| `noReference` | `repo`, `sha` | `revert`, `dependency-bump`, `hotfix-already-released`, `tooling-or-ci`, `process-miss` |
+| `noReference` | `repo`, `sha` | `revert`, `dependency-bump`, `hotfix-already-released`, `tooling-or-ci`, `process-miss`, `security-advisory` |
 | `unknownReference` | `repo`, `sha`, `matcher`, `token` | `other-release`, `typo`, `wrongly-omitted` |
-| `items` | `item` | `configuration-only`, `documentation-only`, `landed-earlier`, `wrongly-tagged`, `not-done` |
+| `items` | `item` | `configuration-only`, `documentation-only`, `landed-earlier`, `wrongly-tagged`, `not-done`, `merged-via-another-change` |
 | `ranges` | `repo` | `expected-divergence`, `wrong-base` |
 
 ```json
@@ -240,6 +278,16 @@ nothing else:
   "ranges": []
 }
 ```
+
+Two classifications need evidence in the note:
+
+- **`security-advisory`** is for a fix merged from a private security fork (for
+  example a `Merge commit from fork` commit), which carries no reference by
+  design. Name the advisory the release claims in the note. Never add an ignore
+  rule for these commits: that would hide security changes from the artifact.
+- **`merged-via-another-change`** is for a claimed item whose work reached the
+  default branch inside another change that no token can link (see "Stacked and
+  feature-branch pull requests" above). Name that change in the note.
 
 An `unknownReference` entry names the full reference tuple rather than just the
 commit, so two unknown references on one commit take separate dispositions. Reuse

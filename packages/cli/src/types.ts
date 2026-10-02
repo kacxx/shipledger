@@ -251,13 +251,15 @@ export interface VerifiedChangesetV2 extends VerifiedChangesetBase {
 export type VerifiedChangeset = VerifiedChangesetV1 | VerifiedChangesetV2;
 
 export const NO_REFERENCE_CLASSIFICATIONS = [
-  'revert', 'dependency-bump', 'hotfix-already-released', 'tooling-or-ci', 'process-miss'
+  'revert', 'dependency-bump', 'hotfix-already-released', 'tooling-or-ci', 'process-miss',
+  'security-advisory'
 ] as const;
 export const UNKNOWN_REFERENCE_CLASSIFICATIONS = [
   'other-release', 'typo', 'wrongly-omitted'
 ] as const;
 export const ITEM_CLASSIFICATIONS = [
-  'configuration-only', 'documentation-only', 'landed-earlier', 'wrongly-tagged', 'not-done'
+  'configuration-only', 'documentation-only', 'landed-earlier', 'wrongly-tagged', 'not-done',
+  'merged-via-another-change'
 ] as const;
 export const RANGE_CLASSIFICATIONS = ['expected-divergence', 'wrong-base'] as const;
 

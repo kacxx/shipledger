@@ -8,6 +8,9 @@ import { renderReport } from '../src/render/report.js';
 import { reconcile } from '../src/core/reconcile.js';
 import { compileAll } from '../src/core/compile.js';
 import { mergeConfig } from '../src/config/load.js';
+import {
+  ITEM_CLASSIFICATIONS, NO_REFERENCE_CLASSIFICATIONS, RANGE_CLASSIFICATIONS, UNKNOWN_REFERENCE_CLASSIFICATIONS
+} from '../src/types.js';
 import type { CommitRecord, NotesFile, RangeResult, VerifiedChangesetV2 } from '../src/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -312,6 +315,34 @@ describe('impact axis (WP-001)', () => {
       noReference: [...forward.noReference!].reverse(),
     };
     expect(renderReport(twoBare, forward)).toBe(renderReport(twoBare, reversed));
+  });
+});
+
+describe('schema classification vocabulary', () => {
+  const schema = JSON.parse(readFileSync(join(here, '..', 'schemas', 'notes.schema.json'), 'utf8'));
+  const enumOf = (section: string): string[] => schema.properties[section].items.properties.classification.enum;
+
+  it('matches the classification constants exactly', () => {
+    expect(enumOf('noReference')).toEqual([...NO_REFERENCE_CLASSIFICATIONS]);
+    expect(enumOf('unknownReference')).toEqual([...UNKNOWN_REFERENCE_CLASSIFICATIONS]);
+    expect(enumOf('items')).toEqual([...ITEM_CLASSIFICATIONS]);
+    expect(enumOf('ranges')).toEqual([...RANGE_CLASSIFICATIONS]);
+  });
+
+  it('accepts security-advisory and merged-via-another-change in version 1 notes', () => {
+    expect(() => validateNotes({
+      version: 1,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'security-advisory', note: 'fix for advisory GHSA-xxxx-xxxx-xxxx' }],
+      items: [{ item: 'PROJ-2', classification: 'merged-via-another-change', note: 'merged into the feature branch' }]
+    })).not.toThrow();
+  });
+
+  it('accepts security-advisory and merged-via-another-change in version 2 notes with impact', () => {
+    expect(() => validateNotes({
+      version: 2,
+      noReference: [{ repo: 'repo-a', sha: C, classification: 'security-advisory', impact: 'no-runtime-impact', note: 'fix for advisory GHSA-xxxx-xxxx-xxxx' }],
+      items: [{ item: 'PROJ-2', classification: 'merged-via-another-change', impact: 'test-only', note: 'merged into the feature branch' }]
+    })).not.toThrow();
   });
 });
 

@@ -894,6 +894,18 @@ describe('renderReleaseNotes', () => {
   it('is deterministic', () => {
     expect(renderReleaseNotes(verified)).toBe(renderReleaseNotes(verified));
   });
+  it('lists an item triaged as merged-via-another-change apart from work with no code', () => {
+    const via: NotesFile = {
+      ...notes,
+      items: [{ item: 'PROJ-2', classification: 'merged-via-another-change', note: 'merged into the feature branch' }]
+    };
+    const text = renderReleaseNotes(verified, via);
+    expect(text).not.toMatch(/claimed but not in git/);
+    expect(text).not.toMatch(/claimed with no code/);
+    expect(text).toMatch(/### shipped inside another change \(triaged, not verified against git\)\n\n\* Claimed but absent \(PROJ-2\)/);
+    expect(text).toMatch(/1\/2 claimed items verified against git/);
+    expect(text).toMatch(/1 triaged as shipped inside another change/);
+  });
 });
 
 describe('empty status', () => {
