@@ -5,7 +5,27 @@ import { fileURLToPath } from 'node:url';
 import { assertVerifiedSemantics } from '../src/verify.js';
 import { validateVerified } from '../src/config/validate.js';
 import { CliError } from '../src/errors.js';
-import type { VerifiedChangeset } from '../src/types.js';
+import { reconcile } from '../src/core/reconcile.js';
+import { compileAll } from '../src/core/compile.js';
+import { mergeConfig } from '../src/config/load.js';
+import type { VerifiedChangeset, VerifiedChangesetV2 } from '../src/types.js';
+
+function reconcileIgnoredClaim(): VerifiedChangesetV2 {
+  const config = mergeConfig({
+    version: 1, preset: 'tracker-keys@1', repos: [{ name: 'repo-a', path: '../a' }]
+  }, '/tmp');
+  return reconcile({
+    config, compiled: compileAll(config),
+    changeset: {
+      version: 1, id: 'r', source: { kind: 'k', ref: 'r', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [{ id: 'PROJ-1', title: 't', type: 'story', status: 'done', tokens: [{ matcher: 'ticket-key', token: 'PROJ-1' }] }],
+      ranges: [{ repo: 'repo-a', base: 'v1', head: 'v2' }]
+    },
+    commits: [{ repo: 'repo-a', sha: 'a'.repeat(40), subject: 'Merge branch PROJ-1', body: '', author: 'Dev', committedAt: '2026-01-01T00:00:00Z' }],
+    ranges: [],
+    cliVersion: '0.3.0', configFingerprint: `sha256:${'0'.repeat(64)}`
+  });
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const load = (): VerifiedChangeset => validateVerified(
@@ -40,6 +60,26 @@ describe('assertVerifiedSemantics', () => {
     const ignored = v.commits.find((c) => c.ignored !== null)!;
     ignored.findings = ['no-reference'];
     expect(() => assertVerifiedSemantics(v)).toThrow(/ignored/);
+  });
+
+  it('accepts a version-2 ignored commit that links the item claiming it', () => {
+    const v = reconcileIgnoredClaim();
+    expect(v.commits[0]!.ignored).not.toBeNull();
+    expect(v.items[0]!.commits).toHaveLength(1);
+    expect(() => assertVerifiedSemantics(v)).not.toThrow();
+  });
+
+  it('derives item links from a version-2 ignored commit\'s references', () => {
+    const v = reconcileIgnoredClaim();
+    v.items[0]!.commits = [];
+    v.items[0]!.findings = ['item-without-commits'];
+    expect(() => assertVerifiedSemantics(v)).toThrow(/references in commits imply/);
+  });
+
+  it('rejects a version-2 ignored commit that carries findings', () => {
+    const v = reconcileIgnoredClaim();
+    v.commits[0]!.findings = ['unknown-reference'];
+    expect(() => assertVerifiedSemantics(v)).toThrow(/is ignored but carries findings/);
   });
 
   it('rejects an item finding that contradicts its commit list', () => {

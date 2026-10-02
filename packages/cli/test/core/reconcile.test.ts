@@ -76,13 +76,41 @@ describe('reconcile', () => {
     expect(out.commits[0]?.body).toBe('context line');
   });
 
-  it('marks an ignored commit, extracts nothing, and excludes it from findings', () => {
+  it('links an ignored commit to the item that claims it, without findings', () => {
     const out = reconcile(input({ commits: [commit({ subject: 'Merge branch PROJ-42' })] }));
     expect(out.commits[0]?.ignored?.rule).toBe('subjects:^Merge branch');
+    expect(out.commits[0]?.references.map((r) => r.resolvesTo)).toEqual([['PROJ-42']]);
+    expect(out.commits[0]?.findings).toEqual([]);
+    const item = out.items.find((i) => i.id === 'PROJ-42');
+    expect(item?.commits).toEqual([{ repo: 'repo-a', sha: '1'.repeat(40), attribution: 'determinate' }]);
+    expect(item?.findings).toEqual([]);
+    expect(out.summary).toMatchObject({ commitsIgnored: 1, itemsLinked: 1, itemsWithoutCommits: 1 });
+  });
+
+  it('raises no unknown-reference for an unclaimed reference on an ignored commit', () => {
+    const out = reconcile(input({ commits: [commit({ subject: 'Merge branch PROJ-99' })] }));
+    expect(out.commits[0]?.references.map((r) => [r.token, r.resolvesTo])).toEqual([['PROJ-99', []]]);
+    expect(out.commits[0]?.findings).toEqual([]);
+    expect(out.summary.unknownReference).toBe(0);
+  });
+
+  it('gives an ignored commit in a divergent range an indeterminate link that does not ship the item', () => {
+    const out = reconcile(input({
+      commits: [commit({ subject: 'Merge branch PROJ-42' })],
+      ranges: [range('repo-a', { baseIsAncestorOfHead: false, findings: ['range-divergence'] })]
+    }));
+    expect(out.commits[0]?.findings).toEqual([]);
+    const item = out.items.find((i) => i.id === 'PROJ-42');
+    expect(item?.commits).toEqual([{ repo: 'repo-a', sha: '1'.repeat(40), attribution: 'indeterminate' }]);
+    expect(item?.attribution).toBe('indeterminate');
+    expect(item?.findings).toEqual([]);
+  });
+
+  it('raises no no-reference for an ignored commit without references', () => {
+    const out = reconcile(input({ commits: [commit({ subject: 'Merge branch main' })] }));
     expect(out.commits[0]?.references).toEqual([]);
     expect(out.commits[0]?.findings).toEqual([]);
     expect(out.summary.noReference).toBe(0);
-    expect(out.items.find((i) => i.id === 'PROJ-42')?.commits).toEqual([]);
   });
 
   it('deduplicates item commit links by repo and sha', () => {

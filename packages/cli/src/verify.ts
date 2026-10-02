@@ -135,9 +135,9 @@ function assertVerifiedSemanticsV2(verified: VerifiedChangesetV2): void {
       problems.push(`${where} declares attribution "${commit.attribution}" but its range implies "${attribution}"`);
     }
 
-    if (commit.ignored !== null) {
-      if (commit.findings.length > 0) problems.push(`${where} is ignored but carries findings`);
-      if (commit.references.length > 0) problems.push(`${where} is ignored but carries references`);
+    // Ignored commits keep their references and links (they may carry no findings).
+    if (commit.ignored !== null && commit.findings.length > 0) {
+      problems.push(`${where} is ignored but carries findings`);
     }
 
     for (const ref of commit.references) {
