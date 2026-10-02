@@ -74,12 +74,17 @@ export function assertNotesCoverFindings(notes: NotesFile, verified: VerifiedCha
     (n) => n.note
   );
 
+  // Only commits carrying an unknown-reference finding need triage: ignored and
+  // divergent commits keep unresolved references without raising the finding.
   const unresolved = new Set<string>();
+  const unflagged = new Set<string>();
   const resolved = new Set<string>();
   for (const commit of verified.commits) {
+    const flagged = commit.findings.includes('unknown-reference');
     for (const ref of commit.references) {
       const key = referenceKey(commit.repo, commit.sha, ref.matcher, ref.token);
-      (ref.resolvesTo.length === 0 ? unresolved : resolved).add(key);
+      if (ref.resolvesTo.length > 0) resolved.add(key);
+      else (flagged ? unresolved : unflagged).add(key);
     }
   }
   const showRef = (key: string): string => {
@@ -91,7 +96,9 @@ export function assertNotesCoverFindings(notes: NotesFile, verified: VerifiedCha
     (n) => referenceKey(n.repo, n.sha, n.matcher, n.token), showRef, unresolved,
     (key) => resolved.has(key)
       ? `unknownReference names ${showRef(key)}, a reference that resolved`
-      : `unknownReference names ${showRef(key)}, which is not a reference in this artifact`,
+      : unflagged.has(key)
+        ? `unknownReference names ${showRef(key)}, on a commit that does not carry an unknown-reference finding`
+        : `unknownReference names ${showRef(key)}, which is not a reference in this artifact`,
     (n) => n.note
   );
 

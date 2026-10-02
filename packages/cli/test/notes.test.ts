@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { assertNotesCoverFindings, buildNoteLookup, commitKey, referenceKey } from '../src/notes.js';
 import { validateNotes, validateVerified } from '../src/config/validate.js';
 import { renderReport } from '../src/render/report.js';
-import type { NotesFile } from '../src/types.js';
+import { reconcile } from '../src/core/reconcile.js';
+import { compileAll } from '../src/core/compile.js';
+import { mergeConfig } from '../src/config/load.js';
+import type { CommitRecord, NotesFile, RangeResult, VerifiedChangesetV2 } from '../src/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const verified = validateVerified(
@@ -15,6 +18,25 @@ const verified = validateVerified(
 const A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const C = 'cccccccccccccccccccccccccccccccccccccccc';
+
+function reconcileUnclaimed(subjects: string[], ranges: RangeResult[] = []): VerifiedChangesetV2 {
+  const config = mergeConfig({
+    version: 1, preset: 'tracker-keys@1', repos: [{ name: 'repo-a', path: '../a' }]
+  }, '/tmp');
+  const commits: CommitRecord[] = subjects.map((subject, i) => ({
+    repo: 'repo-a', sha: String(i + 1).repeat(40), subject, body: '', author: 'Dev', committedAt: '2026-01-01T00:00:00Z'
+  }));
+  return reconcile({
+    config, compiled: compileAll(config),
+    changeset: {
+      version: 1, id: 'r', source: { kind: 'k', ref: 'r', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [{ id: 'PROJ-1', title: 't', type: 'story', status: 'done', tokens: [{ matcher: 'ticket-key', token: 'PROJ-1' }] }],
+      ranges: [{ repo: 'repo-a', base: 'v1', head: 'v2' }]
+    },
+    commits, ranges,
+    cliVersion: '0.3.0', configFingerprint: `sha256:${'0'.repeat(64)}`
+  });
+}
 
 const complete = (): NotesFile => ({
   version: 1,
@@ -124,6 +146,37 @@ describe('assertNotesCoverFindings', () => {
     const notes = complete();
     notes.unknownReference?.push({ repo: 'repo-a', sha: B, matcher: 'ticket-key', token: 'PROJ-8', classification: 'typo', note: 'meant PROJ-1' });
     expect(() => assertNotesCoverFindings(notes, two)).not.toThrow();
+  });
+
+  it('needs no entry for an unclaimed reference on an ignored commit', () => {
+    const v = reconcileUnclaimed(['PROJ-1 fix', 'Merge branch PROJ-99']);
+    expect(v.commits[1]?.ignored).not.toBeNull();
+    expect(() => assertNotesCoverFindings({ version: 1, noReference: [], unknownReference: [], items: [], ranges: [] }, v))
+      .not.toThrow();
+  });
+
+  it('rejects an entry for an unclaimed reference on an ignored commit', () => {
+    const v = reconcileUnclaimed(['PROJ-1 fix', 'Merge branch PROJ-99']);
+    const notes: NotesFile = {
+      version: 1, noReference: [], items: [], ranges: [],
+      unknownReference: [{ repo: 'repo-a', sha: '2'.repeat(40), matcher: 'ticket-key', token: 'PROJ-99', classification: 'typo', note: 'x' }]
+    };
+    expect(() => assertNotesCoverFindings(notes, v)).toThrow(/does not carry an unknown-reference finding/);
+  });
+
+  it('needs no entry for an unclaimed reference on a commit in a divergent range', () => {
+    const divergent: RangeResult = {
+      repo: 'repo-a', base: 'v1', baseSha: 'b'.repeat(40), head: 'v2', headSha: 'e'.repeat(40),
+      include: [], mergeBase: 'c'.repeat(40), baseIsAncestorOfHead: false, commitsOnlyInBase: 1,
+      effectiveDelta: [], findings: ['range-divergence']
+    };
+    const v = reconcileUnclaimed(['PROJ-1 and PROJ-99'], [divergent]);
+    expect(v.commits[0]?.findings).toEqual([]);
+    const notes: NotesFile = {
+      version: 1, noReference: [], unknownReference: [], items: [],
+      ranges: [{ repo: 'repo-a', classification: 'expected-divergence', note: 'branches cut separately' }]
+    };
+    expect(() => assertNotesCoverFindings(notes, v)).not.toThrow();
   });
 
   it('reports every problem in one error', () => {

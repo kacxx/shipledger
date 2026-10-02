@@ -110,6 +110,12 @@ source, and milestone issues closed as duplicate, wontfix, or docs-only routinel
 have no code behind them. Both findings are still reported either way — they are
 just not gate failures.
 
+An ignore rule (dependency bots, merge commits) waives the need for a claim, not
+the commit's evidence: an ignored commit still links to any item that claims it,
+but never raises `no-reference` or `unknown-reference`, so it needs no triage.
+Before 0.3.0, ignored commits were excluded entirely, so a claimed dependency bump
+was reported as `item-without-commits`.
+
 ## Triage
 
 `render` accepts an optional `notes.json`. Omit it and the artifact is explicitly
@@ -129,7 +135,10 @@ pull request number in `repo-a` can never match one in `repo-b`.
 **A present config key replaces the preset value entirely**, objects and arrays
 included. There is no deep merge, so an override must be complete. Presets are
 pinned (`tracker-keys@1`) so a CLI upgrade cannot silently change the policy your
-release was judged against.
+release was judged against. Reconciliation itself can still change between 0.x
+minor versions (0.3.0 changed how ignored commits link), which is why artifacts
+record the CLI version and `--verify-against-repos` refuses one from another
+version.
 
 ## With an agent
 

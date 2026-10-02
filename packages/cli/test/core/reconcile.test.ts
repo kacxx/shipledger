@@ -94,6 +94,18 @@ describe('reconcile', () => {
     expect(out.summary.unknownReference).toBe(0);
   });
 
+  it('gives an ignored commit in a divergent range an indeterminate link that does not ship the item', () => {
+    const out = reconcile(input({
+      commits: [commit({ subject: 'Merge branch PROJ-42' })],
+      ranges: [range('repo-a', { baseIsAncestorOfHead: false, findings: ['range-divergence'] })]
+    }));
+    expect(out.commits[0]?.findings).toEqual([]);
+    const item = out.items.find((i) => i.id === 'PROJ-42');
+    expect(item?.commits).toEqual([{ repo: 'repo-a', sha: '1'.repeat(40), attribution: 'indeterminate' }]);
+    expect(item?.attribution).toBe('indeterminate');
+    expect(item?.findings).toEqual([]);
+  });
+
   it('raises no no-reference for an ignored commit without references', () => {
     const out = reconcile(input({ commits: [commit({ subject: 'Merge branch main' })] }));
     expect(out.commits[0]?.references).toEqual([]);
