@@ -1,6 +1,6 @@
 {
   "name": "shipledger",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Reconcile a claimed release changeset against local git history",
   "license": "MIT",
   "type": "module",

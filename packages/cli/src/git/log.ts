@@ -6,6 +6,12 @@ import type { CommitRecord, HistoryMode, RangeResult } from '../types.js';
 const FIELDS = 5;
 const FORMAT = ['%H', '%an', '%cI', '%s', '%b'].join('%x00') + '%x00';
 
+// `%cI` prints a UTC offset as "+00:00" on some git versions and "Z" on others.
+// One form keeps an artifact identical, and verifiable, whichever git wrote it.
+export function canonicalCommitDate(iso: string): string {
+  return iso.endsWith('Z') ? `${iso.slice(0, -1)}+00:00` : iso;
+}
+
 export function parseLogOutput(raw: string, repo: string, repoPath: string): CommitRecord[] {
   const fail = (why: string): never => {
     throw envError(`Unparseable git log output for repo "${repo}" in ${repoPath}: ${why}. This is a bug or a git version difference — the count cannot be trusted, so nothing is reported.`);
@@ -30,7 +36,7 @@ export function parseLogOutput(raw: string, repo: string, repoPath: string): Com
       repo,
       sha,
       author: parts[i + 1] as string,
-      committedAt: parts[i + 2] as string,
+      committedAt: canonicalCommitDate(parts[i + 2] as string),
       subject: parts[i + 3] as string,
       body: parts[i + 4] as string
     });
