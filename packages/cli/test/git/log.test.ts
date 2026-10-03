@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { walkRange, parseLogOutput } from '../../src/git/log.js';
+import { walkRange, parseLogOutput, canonicalCommitDate } from '../../src/git/log.js';
 import { resolveRange } from '../../src/git/refs.js';
 import { CliError } from '../../src/errors.js';
 import { makeRepo, type FixtureRepo } from '../helpers/repo.js';
@@ -127,6 +127,26 @@ describe('walkRange', () => {
     repo = makeRepo();
     repo.commit('only'); repo.tag('v1');
     expect(walk({ repo: 'r', base: 'v1', head: 'v1' }, repo.path, 'all')).toEqual([]);
+  });
+
+  it('records a UTC commit time as +00:00 whichever form this git prints', () => {
+    repo = makeRepo();
+    repo.commit('base'); repo.tag('v1');
+    repo.commit('at UTC');
+    expect(walk({ repo: 'r', base: 'v1', head: 'HEAD' }, repo.path, 'all')[0]?.committedAt)
+      .toBe('2026-01-01T00:00:00+00:00');
+  });
+});
+
+describe('canonicalCommitDate', () => {
+  it('writes a Z offset as +00:00', () => {
+    expect(canonicalCommitDate('2026-09-30T08:14:27Z')).toBe('2026-09-30T08:14:27+00:00');
+  });
+
+  it('leaves +00:00 and other offsets unchanged', () => {
+    expect(canonicalCommitDate('2026-09-30T08:14:27+00:00')).toBe('2026-09-30T08:14:27+00:00');
+    expect(canonicalCommitDate('2026-09-30T21:12:28+02:00')).toBe('2026-09-30T21:12:28+02:00');
+    expect(canonicalCommitDate('2026-09-30T08:14:27-05:30')).toBe('2026-09-30T08:14:27-05:30');
   });
 });
 
