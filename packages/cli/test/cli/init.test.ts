@@ -27,7 +27,7 @@ describe('runInit', () => {
     expect(runInit(['--out', out], work)).toBe(0);
     const parsed = JSON.parse(readFileSync(out, 'utf8'));
     expect(() => validateConfig(parsed)).not.toThrow();
-    expect(parsed.preset).toBe('tracker-keys@1');
+    expect(parsed.preset).toBe('tracker-keys@2');
   });
 
   it('pins a bare preset name', () => {
@@ -35,7 +35,7 @@ describe('runInit', () => {
     silence();
     const out = join(work, 'c.json');
     runInit(['--preset', 'github-oss', '--out', out], work);
-    expect(JSON.parse(readFileSync(out, 'utf8')).preset).toBe('github-oss@1');
+    expect(JSON.parse(readFileSync(out, 'utf8')).preset).toBe('github-oss@2');
   });
 
   it('accepts an already-pinned preset', () => {

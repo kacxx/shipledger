@@ -18,6 +18,19 @@ const PR_REF: MatcherConfig = {
   pattern: '(#\\d+)', namespace: 'repo', normalize: 'none'
 };
 
+// The lookbehinds skip "owner/repo#12", URL fragments and "&#12;", which name
+// something other than this repository's pull request 12, while still
+// matching "PR#12". The lookahead skips "#12abc".
+const PR_REF_PATTERN_V2 = '(?<![\\w.-]*/[\\w.-]*)(?<!&)(#\\d+)(?!\\w)';
+
+const PR_REF_V2_SUBJECT: MatcherConfig = { ...PR_REF, pattern: PR_REF_PATTERN_V2 };
+
+// Many projects reference their issues in the body ("closes #12") rather
+// than the subject.
+const PR_REF_V2_SUBJECT_AND_BODY: MatcherConfig = {
+  ...PR_REF, pattern: PR_REF_PATTERN_V2, sources: ['subject', 'body']
+};
+
 const COMMON_IGNORE: IgnoreConfig = {
   authors: ['dependabot[bot]'],
   subjects: ['^Merge branch', '^chore\\(deps\\)']
@@ -30,11 +43,23 @@ const REGISTRY: Record<string, Record<number, PresetDefaults>> = {
       history: 'first-parent',
       ignore: COMMON_IGNORE,
       policy: { failOn: ['no-reference', 'unknown-reference', 'item-without-commits', 'range-divergence'] }
+    },
+    2: {
+      matchers: [TICKET_KEY, PR_REF_V2_SUBJECT],
+      history: 'first-parent',
+      ignore: COMMON_IGNORE,
+      policy: { failOn: ['no-reference', 'unknown-reference', 'item-without-commits', 'range-divergence'] }
     }
   },
   'github-oss': {
     1: {
       matchers: [PR_REF],
+      history: 'first-parent',
+      ignore: COMMON_IGNORE,
+      policy: { failOn: ['unknown-reference', 'range-divergence'] }
+    },
+    2: {
+      matchers: [PR_REF_V2_SUBJECT_AND_BODY],
       history: 'first-parent',
       ignore: COMMON_IGNORE,
       policy: { failOn: ['unknown-reference', 'range-divergence'] }

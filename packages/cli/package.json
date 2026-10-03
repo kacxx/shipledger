@@ -1,6 +1,6 @@
 {
   "name": "shipledger",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Reconcile a claimed release changeset against local git history",
   "license": "MIT",
   "type": "module",
@@ -29,7 +29,7 @@
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true,maxRetries:10})\"",
-    "build": "npm run clean && node scripts/write-build-info.mjs && tsc -p tsconfig.json",
+    "build": "npm run clean && node scripts/write-build-info.mjs && tsc -p tsconfig.json && node scripts/mark-bin-executable.mjs",
     "lint": "eslint . --max-warnings 0",
     "prepack": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
