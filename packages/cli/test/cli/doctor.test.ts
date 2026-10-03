@@ -161,6 +161,24 @@ describe('runDoctor', () => {
     expect(text).toMatch(/matchers \[preset\]:/);
   });
 
+  it('shows body references as strict when a policy override drops the github-oss@3 setting', () => {
+    repo = healthyRepo();
+    work = mkdtempSync(join(tmpdir(), 'shipledger-doc-'));
+    const write = (policy?: object): void => writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'github-oss@3', repos: [{ name: 'repo-a', path: repo.path }], ...(policy && { policy })
+    }));
+
+    write();
+    let out = capture();
+    runDoctor(['--config', join(work, 'config.json')], process.cwd());
+    expect(out.text()).toContain('policy bodyReferences: context');
+
+    write({ failOn: ['unknown-reference'] });
+    out = capture();
+    runDoctor(['--config', join(work, 'config.json')], process.cwd());
+    expect(out.text()).toContain('policy bodyReferences: strict (default)');
+  });
+
   it('reports dirty files under include paths as INFO', () => {
     repo = healthyRepo();
     mkdirSync(join(repo.path, 'pkg'));

@@ -139,8 +139,18 @@ release was judged against. Version 2 of both presets ignores references to othe
 repositories (`owner/repo#12`), and `github-oss@2` also reads `#12` in commit bodies,
 where many projects write `closes #12`. That means a claim listing pull requests must
 also list the issues they close, or a body's `Fixes #10` fails the release as an
-`unknown-reference`; the skill adds them from the forge. A config pinned to `@1`
-keeps the old matching. Reconciliation itself can still change between 0.x
+`unknown-reference`; the skill adds them from the forge. `github-oss@3` treats an
+unresolved body reference as context when another reference on the same commit
+resolves, so `fix: tidy (#12)` with "Follow-up to #9" in its body passes once `#12`
+is claimed. The report marks each such reference `context, not claimed`, because a
+squash body can also list stacked PRs that did ship. A `policy` override replaces this
+setting along with the rest of the policy, so add `"bodyReferences": "context"` to keep
+it; `doctor` prints the mode in effect. `@3` also ignores release automation commits
+(`chore(main): release 1.2.3`, `chore(release): 1.2.3`, and release-please's combined
+`chore(main): release main`), which are never listed in the notes they produce. A
+combined release on a branch other than `main` or `master` without a scope is not
+covered. A config pinned to `@1` keeps the old matching, and one pinned to `@2` keeps
+strict body references. Reconciliation itself can still change between 0.x
 minor versions (0.3.0 changed how ignored commits link), which is why artifacts
 record the CLI version and `--verify-against-repos` refuses one from another
 version.

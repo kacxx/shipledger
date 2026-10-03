@@ -35,7 +35,7 @@ describe('runInit', () => {
     silence();
     const out = join(work, 'c.json');
     runInit(['--preset', 'github-oss', '--out', out], work);
-    expect(JSON.parse(readFileSync(out, 'utf8')).preset).toBe('github-oss@2');
+    expect(JSON.parse(readFileSync(out, 'utf8')).preset).toBe('github-oss@3');
   });
 
   it('accepts an already-pinned preset', () => {

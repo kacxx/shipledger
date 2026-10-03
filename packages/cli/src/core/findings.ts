@@ -1,5 +1,5 @@
 import type {
-  CommitRecord, FindingName, PolicyConfig, Reference, Summary, SummaryV1, Violation
+  BodyReferencesMode, CommitRecord, FindingName, PolicyConfig, Reference, Summary, SummaryV1, Violation
 } from '../types.js';
 import type { CompiledIgnore } from './compile.js';
 
@@ -23,11 +23,24 @@ export function matchIgnoreRule(commit: CommitRecord, ignore: CompiledIgnore): s
  * finding is emitted — the commit is marked indeterminate instead (ADR 0008).
  */
 export function commitFindings(
-  references: Reference[], ignored: boolean, divergent: boolean
+  references: Reference[], ignored: boolean, divergent: boolean, bodyReferences?: BodyReferencesMode
 ): FindingName[] {
   if (ignored || divergent) return [];
   if (references.length === 0) return ['no-reference'];
-  return references.some((r) => r.resolvesTo.length === 0) ? ['unknown-reference'] : [];
+  return referenceFindings(references, bodyReferences);
+}
+
+/** The finding a non-empty reference list implies on a commit that is neither ignored nor divergent. */
+export function referenceFindings(
+  references: Reference[], bodyReferences: BodyReferencesMode = 'strict'
+): FindingName[] {
+  const unresolved = references.filter((r) => r.resolvesTo.length === 0);
+  if (unresolved.length === 0) return [];
+  if (bodyReferences === 'context' && unresolved.length < references.length
+    && unresolved.every((r) => r.sources.length === 1 && r.sources[0] === 'body')) {
+    return [];
+  }
+  return ['unknown-reference'];
 }
 
 interface Findable { findings: FindingName[] }
