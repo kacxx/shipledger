@@ -134,8 +134,10 @@ pull request number in `repo-a` can never match one in `repo-b`.
 
 **A present config key replaces the preset value entirely**, objects and arrays
 included. There is no deep merge, so an override must be complete. Presets are
-pinned (`tracker-keys@1`) so a CLI upgrade cannot silently change the policy your
-release was judged against. Reconciliation itself can still change between 0.x
+pinned (`tracker-keys@2`) so a CLI upgrade cannot silently change the policy your
+release was judged against. Version 2 of both presets ignores references to other
+repositories (`owner/repo#12`), and `github-oss@2` also reads `#12` in commit bodies,
+where many projects write `closes #12`. A config pinned to `@1` keeps the old matching. Reconciliation itself can still change between 0.x
 minor versions (0.3.0 changed how ignored commits link), which is why artifacts
 record the CLI version and `--verify-against-repos` refuses one from another
 version.

@@ -29,7 +29,7 @@ to this file, not the user's repository) and pass it through. `shipledger
 digest.
 
 ```bash
-npx shipledger doctor --config shipledger.config.json --skill-cli-range '^0.3.1'
+npx shipledger doctor --config shipledger.config.json --skill-cli-range '^0.3.2'
 ```
 
 Exit 3 on an incompatible or uninterpretable range means stop and tell the user
@@ -39,7 +39,7 @@ which CLI version to pin. If there is no config yet:
 npx shipledger init --preset tracker-keys   # or github-oss
 ```
 
-`init` writes a pinned preset (`tracker-keys@1`). `check` and `doctor` reject an
+`init` writes a pinned preset (`tracker-keys@2`). `check` and `doctor` reject an
 unpinned preset, because an unpinned preset would let a CLI upgrade silently
 change the policy a release was judged against.
 

@@ -111,6 +111,8 @@ It permits `no-reference`, because a drive-by fix with no issue is normal in ope
 
 An adopter may deliberately omit `range-divergence` in a complete replacement policy; that committed, fingerprinted policy is the explicit waiver.
 
+Version 2 of both presets keeps the version 1 policy, history, and ignore rules and changes only matching. The `pr-ref` pattern becomes `(?<![\w.-]*/[\w.-]*)(?<!&)(#\d+)(?!\w)`, which skips a number that belongs to something else: another repository (`owner/repo#12`), a URL fragment, or an HTML entity (`&#12;`). `PR#12` still matches. `github-oss@2` also reads `pr-ref` from commit bodies, because many open-source projects write `closes #12` there and keep the subject free of numbers; under version 1 their claimed items appear to have no commits. `tracker-keys@2` keeps `pr-ref` on the subject, since its ticket keys already read the body. Version 1 is unchanged, so a config pinned to it is judged exactly as before.
+
 ### `changeset.json` — ephemeral, per release, written by the agent
 
 This is the tracker's *claim*. The example below is from the `github-oss` workflow, whereas the config above is from `tracker-keys` — the two file formats are independent of preset, and structured item tokens matter in both.
