@@ -130,6 +130,13 @@ Add each number as a `pr-ref` token on the PR's item (`#10` on item `#12`). Add
 only issues the forge links as closed by that PR; an issue the body merely
 mentions stays unresolved for triage.
 
+**Under `github-oss@3`, check waived body references before relying on the
+waiver.** The report marks them `context, not claimed`. Most are citations
+("follow-up to #9"), but a squash-merge body lists the PR's own commits, so it can
+name a stacked child PR (`* Fix x (#13)`) whose work shipped inside the parent. For
+each waived reference that is a merged PR in this range's history and is not
+claimed, apply the stacked-PR guidance below as you would for an unlinked item.
+
 Unresolved PR references are evidence, not defects. Classifying them requires
 triage, not token injection.
 

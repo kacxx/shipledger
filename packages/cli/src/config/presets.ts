@@ -38,13 +38,19 @@ const COMMON_IGNORE: IgnoreConfig = {
 
 // Release automation commits ("chore(main): release 1.2.3" from release-please,
 // "chore(release): 1.2.3" from semantic-release) are never listed in the release
-// notes they produce.
+// notes they produce. Each pattern is anchored at both ends so a commit that only
+// starts like one ("chore: release 1.2.3 and fix auth") is still judged.
+const SEMVER = 'v?\\d+\\.\\d+\\.\\d+(-[\\w.]+)?(\\+[\\w.]+)?';
+const PR_SUFFIX = '( \\(#\\d+\\))?';
 const OSS_IGNORE_V3: IgnoreConfig = {
   authors: COMMON_IGNORE.authors,
   subjects: [
     ...COMMON_IGNORE.subjects,
-    '^chore(\\([\\w./-]+\\))?: release ([\\w@./-]+ )?v?\\d+\\.\\d+\\.\\d+',
-    '^chore\\(release\\): v?\\d+\\.\\d+\\.\\d+'
+    `^chore(\\([\\w./-]+\\))?: release ([\\w@./-]+ )?${SEMVER}${PR_SUFFIX}$`,
+    // release-please's combined monorepo release names the branch instead of a version.
+    `^chore\\(([\\w./-]+)\\): release \\1${PR_SUFFIX}$`,
+    `^chore: release (main|master)${PR_SUFFIX}$`,
+    `^chore\\(release\\): ${SEMVER}( \\[skip ci\\])?${PR_SUFFIX}$`
   ]
 };
 

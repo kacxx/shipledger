@@ -122,6 +122,13 @@ function commitRow(
   return `| ${mdEscape(c.repo)} | ${linkedSha(links, c.repo, c.sha)} | ${mdEscape(c.subject)} | ${status} | ${detail}${noteSuffix} |`;
 }
 
+/** Unresolved references the policy waived as body context: they raised no finding on a commit that counts. */
+function waivedReferences(c: CommitResultV1): CommitResultV1['references'] {
+  if (c.ignored !== null || c.findings.length > 0) return [];
+  if ((c as Partial<CommitResult>).attribution === 'indeterminate') return [];
+  return c.references.filter((r) => r.resolvesTo.length === 0);
+}
+
 function countFindings(verified: VerifiedChangeset): number {
   let count = 0;
   for (const c of verified.commits as CommitResultV1[]) {
@@ -171,6 +178,11 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
     if (verified.summary.indeterminateItems > 0) {
       out.push(`| Scope note | Divergence in any range makes unlinked items across the run indeterminate (ADR 0008) |`);
     }
+  }
+
+  const waived = (verified.commits as CommitResultV1[]).reduce((n, c) => n + waivedReferences(c).length, 0);
+  if (waived > 0) {
+    out.push(`| Body context | ${waived} unresolved body reference(s) waived (\`bodyReferences: context\`), not checked against the claim |`);
   }
 
   if (verified.violations.length > 0) {
@@ -262,6 +274,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
         }
 
         if (c.references.length > 0) {
+          const waivedHere = new Set(waivedReferences(c));
           const refDetails = c.references.map((r) => {
             const tokenPart = linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace);
             const sourcesPart = r.sources.join(', ');
@@ -269,6 +282,7 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
               const items = [...new Set(r.resolvesTo)].map((id) => linkedItemId(id, itemUrls)).join(', ');
               return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart}) → ${items}`;
             }
+            if (waivedHere.has(r)) return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart}) → context, not claimed`;
             const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
             return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart})${noteSuffix(entry)}`;
           }).join('; ');

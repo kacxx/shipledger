@@ -120,8 +120,14 @@ describe('resolvePreset', () => {
       ['chore(main): release 1.24.0 (#17662)'],
       ['chore: release 2.0.0'],
       ['chore(main): release my-pkg 1.2.3'],
+      ['chore(main): release @scope/pkg v1.2.3 (#45)'],
       ['chore(master): release v3.1.0'],
-      ['chore(release): 1.2.3 [skip ci]']
+      ['chore(main): release 2.0.0-rc.1'],
+      ['chore: release main'],
+      ['chore(main): release main (#45)'],
+      ['chore(release-1.x): release release-1.x'],
+      ['chore(release): 1.2.3 [skip ci]'],
+      ['chore(release): 1.2.3-beta.2']
     ])('ignores the release commit %j', (subject) => {
       expect(ignored(subject)).toBe(true);
     });
@@ -130,7 +136,12 @@ describe('resolvePreset', () => {
       ['chore: release notes typo'],
       ['chore(ci): release workflow uses node 22'],
       ['fix: release 1.2.3 regression (#12)'],
-      ['chore(release): bump tooling']
+      ['chore(release): bump tooling'],
+      ['chore: release 1.2.3 and fix auth bypass'],
+      ['chore(main): release 1.2.3 then patch login'],
+      ['chore(release): 1.2.3 plus a hotfix'],
+      ['chore(main): release develop'],
+      ['chore: release develop']
     ])('does not ignore %j', (subject) => {
       expect(ignored(subject)).toBe(false);
     });
