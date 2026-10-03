@@ -311,41 +311,54 @@ describe('renderReport multiline safety', () => {
 
 describe('control characters in tracker and git text', () => {
   // eslint-disable-next-line no-control-regex
-  const CONTROL = /[\x00-\x09\x0b-\x1f\x7f-\x9f]/;
-  const hostile: VerifiedChangeset = {
+  const UNSAFE = /[\x00-\x09\x0b-\x1f\x7f-\x9f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
+  const [linked, orphan] = verified.items as [VerifiedChangeset['items'][number], VerifiedChangeset['items'][number]];
+  const hostile = {
     ...verified,
     changeset: { ...verified.changeset, id: 'release\n# fake' },
-    items: verified.items.map((i) => i.id === 'PROJ-1'
-      ? { ...i, title: 'Add\x1b[2J\nPASS thing', type: 'story\nfake' }
-      : { ...i, title: 'Claimed\r\nabsent', status: 'in-progress\x07' }),
+    items: [
+      { ...linked, title: 'Add\x1b[2J\nPASS thing', type: 'story\nfake' },
+      { ...orphan, title: 'Claimed\r\nabsent', status: 'in-progress\x07' },
+      { ...linked, id: 'PROJ-3', title: 'Maybe\nshipped \u202Eevil', attribution: 'indeterminate' },
+      { ...orphan, id: 'PROJ-4', title: 'Inside\nanother\u2066' }
+    ],
     commits: verified.commits.map((c) =>
-      c.sha.startsWith('cccc') ? { ...c, subject: 'tidy\x1b]0;t\x07 up' } : c
-    )
+      c.sha.startsWith('cccc') ? { ...c, repo: 'repo-a\n# fake', subject: 'tidy\x1b]0;t\x07 up' } : c
+    ),
+    ranges: verified.ranges.map((r) => ({ ...r, base: 'v1\nx', head: 'v2\x1b[0m', findings: ['range-divergence'] }))
+  } as unknown as VerifiedChangeset;
+  const hostileNotes: NotesFile = {
+    ...notes,
+    items: [...(notes.items ?? []), { item: 'PROJ-4', classification: 'merged-via-another-change', note: 'in the feature merge' }]
   };
 
-  it('keeps release-notes entries on one line with no control characters', () => {
-    const text = renderReleaseNotes(hostile, notes);
-    expect(text).not.toMatch(CONTROL);
+  it('keeps every release-notes section on one line per entry with no unsafe characters', () => {
+    const text = renderReleaseNotes(hostile, hostileNotes);
+    expect(text).not.toMatch(UNSAFE);
     const lines = text.split('\n');
     expect(lines[0]).toBe('## release # fake');
     expect(lines).toContain('### story fake');
     expect(lines).toContain('* Add?[2J PASS thing (PROJ-1)');
     expect(lines).toContain('* ~Claimed absent~ (PROJ-2) [in-progress?]');
+    expect(lines).toContain('* Maybe shipped ?evil (PROJ-3)');
+    expect(lines).toContain('* Inside another? (PROJ-4)');
   });
 
-  it('keeps changelog entries on one line with no control characters', () => {
-    const text = renderChangelog(hostile, notes);
-    expect(text).not.toMatch(CONTROL);
+  it('keeps every changelog section on one line per entry with no unsafe characters', () => {
+    const text = renderChangelog(hostile, hostileNotes);
+    expect(text).not.toMatch(UNSAFE);
     const lines = text.split('\n');
     expect(lines[0]).toBe('# release # fake');
     expect(lines).toContain('- **PROJ-1** Add?[2J PASS thing (2 commits)');
-    expect(lines.some((l) => l.includes('tidy?]0;t? up'))).toBe(true);
+    expect(lines).toContain('- **PROJ-3** Maybe shipped ?evil (2 indeterminate commits)');
+    expect(lines.some((l) => l.startsWith('- `repo-a # fake cccccccc` tidy?]0;t? up'))).toBe(true);
     expect(lines.some((l) => l.startsWith('- **PROJ-2** Claimed absent [in-progress?]'))).toBe(true);
+    expect(lines.some((l) => l.startsWith('- `repo-a` v1 x..v2?[0m — '))).toBe(true);
   });
 
-  it('strips control characters from report cells', () => {
-    const text = renderReport(hostile, notes);
-    expect(text).not.toMatch(CONTROL);
+  it('strips unsafe characters from report cells', () => {
+    const text = renderReport(hostile, hostileNotes);
+    expect(text).not.toMatch(UNSAFE);
     expect(text).toContain('Add?\\[2J PASS thing');
   });
 });

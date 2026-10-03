@@ -53,7 +53,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
       const bare = lookup.noReference.get(commitKey(c.repo, c.sha));
       const tags = [...dispositions, ...(bare ? [classificationLabel(bare)] : [])];
       const refs = unresolved.length > 0 ? ` (refs ${unresolved.map((r) => oneLine(r.token)).join(', ')})` : '';
-      out.push(`- \`${c.repo} ${c.sha.slice(0, 8)}\` ${oneLine(c.subject)}${refs}${tags.length > 0 ? ` — ${tags.join(', ')}` : ''}`);
+      out.push(`- \`${oneLine(c.repo)} ${c.sha.slice(0, 8)}\` ${oneLine(c.subject)}${refs}${tags.length > 0 ? ` — ${tags.join(', ')}` : ''}`);
     }
     out.push('');
   }
@@ -73,7 +73,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Incomplete ranges', '');
     for (const r of diverged) {
       const note = lookup.ranges.get(r.repo);
-      out.push(`- \`${r.repo}\` ${oneLine(r.base)}..${oneLine(r.head)} — ${r.commitsOnlyInBase} commit(s) only in base are not represented${note ? ` — ${classificationLabel(note)}` : ''}`);
+      out.push(`- \`${oneLine(r.repo)}\` ${oneLine(r.base)}..${oneLine(r.head)} — ${r.commitsOnlyInBase} commit(s) only in base are not represented${note ? ` — ${classificationLabel(note)}` : ''}`);
     }
     out.push('');
   }

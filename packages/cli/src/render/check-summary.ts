@@ -1,12 +1,7 @@
+import { plain } from './text.js';
 import type { VerifiedChangesetV2 } from '../types.js';
 
 const MAX_FINDING_LINES = 20;
-
-/** Titles, ids and refs come from the tracker; subjects from commit authors. */
-function plain(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/[\x00-\x1f\x7f-\x9f]/g, '?');
-}
 
 /** A short human summary of a check result. The artifact remains the record. */
 export function renderCheckSummary(verified: VerifiedChangesetV2, outPath: string): string {
