@@ -15,7 +15,7 @@ describe('resolvePreset', () => {
 
   it('allows an unpinned preset when explicitly permitted, for init, resolving the latest version', () => {
     expect(resolvePreset('tracker-keys', { allowUnpinned: true }).version).toBe(2);
-    expect(resolvePreset('github-oss', { allowUnpinned: true }).version).toBe(2);
+    expect(resolvePreset('github-oss', { allowUnpinned: true }).version).toBe(3);
   });
 
   it('tracker-keys@1 fails on all four findings', () => {
@@ -91,6 +91,48 @@ describe('resolvePreset', () => {
 
     it('matches a local reference next to a cross-repository one', () => {
       expect(tokens('other-org/other-repo#3 and #4')).toEqual(['#4']);
+    });
+  });
+
+  describe('github-oss@3', () => {
+    const v2 = resolvePreset('github-oss@2').defaults;
+    const v3 = resolvePreset('github-oss@3').defaults;
+
+    it('keeps the version 2 matchers, history and failOn', () => {
+      expect(v3.matchers).toEqual(v2.matchers);
+      expect(v3.history).toEqual(v2.history);
+      expect(v3.policy.failOn).toEqual(v2.policy.failOn);
+    });
+
+    it('treats unresolved body references as context, where version 2 stays strict', () => {
+      expect(v3.policy.bodyReferences).toBe('context');
+      expect(v2.policy.bodyReferences).toBeUndefined();
+    });
+
+    it('keeps the version 2 ignore rules and adds release automation commits', () => {
+      expect(v3.ignore.authors).toEqual(v2.ignore.authors);
+      expect(v3.ignore.subjects.slice(0, v2.ignore.subjects.length)).toEqual(v2.ignore.subjects);
+    });
+
+    const ignored = (subject: string): boolean => v3.ignore.subjects.some((p) => new RegExp(p).test(subject));
+
+    it.each([
+      ['chore(main): release 1.24.0 (#17662)'],
+      ['chore: release 2.0.0'],
+      ['chore(main): release my-pkg 1.2.3'],
+      ['chore(master): release v3.1.0'],
+      ['chore(release): 1.2.3 [skip ci]']
+    ])('ignores the release commit %j', (subject) => {
+      expect(ignored(subject)).toBe(true);
+    });
+
+    it.each([
+      ['chore: release notes typo'],
+      ['chore(ci): release workflow uses node 22'],
+      ['fix: release 1.2.3 regression (#12)'],
+      ['chore(release): bump tooling']
+    ])('does not ignore %j', (subject) => {
+      expect(ignored(subject)).toBe(false);
     });
   });
 

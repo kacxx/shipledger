@@ -54,7 +54,8 @@
         "failOn": {
           "type": "array",
           "items": { "enum": ["no-reference", "unknown-reference", "item-without-commits", "range-divergence"] }
-        }
+        },
+        "bodyReferences": { "enum": ["strict", "context"] }
       }
     },
     "links": {

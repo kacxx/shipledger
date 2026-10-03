@@ -69,6 +69,34 @@ describe('commitFindings', () => {
   it('returns nothing for a divergent commit even with unknown references', () => {
     expect(commitFindings([ref(['PROJ-1']), ref([])], false, true)).toEqual([]);
   });
+
+  describe('bodyReferences', () => {
+    const at = (resolvesTo: string[], sources: Reference['sources']): Reference => ({ ...ref(resolvesTo), sources });
+    const linkedWithBodyContext = [at(['PROJ-1'], ['subject']), at([], ['body'])];
+
+    it('counts an unresolved body reference by default and under strict', () => {
+      expect(commitFindings(linkedWithBodyContext, false, false)).toEqual(['unknown-reference']);
+      expect(commitFindings(linkedWithBodyContext, false, false, 'strict')).toEqual(['unknown-reference']);
+    });
+
+    it('treats an unresolved body reference as context when another reference resolves', () => {
+      expect(commitFindings(linkedWithBodyContext, false, false, 'context')).toEqual([]);
+    });
+
+    it('still flags a commit whose only references are unresolved body references', () => {
+      expect(commitFindings([at([], ['body']), at([], ['body'])], false, false, 'context')).toEqual(['unknown-reference']);
+    });
+
+    it('still flags an unresolved subject reference', () => {
+      expect(commitFindings([at([], ['subject']), at(['PROJ-1'], ['body'])], false, false, 'context'))
+        .toEqual(['unknown-reference']);
+    });
+
+    it('still flags an unresolved reference that also appears in the subject', () => {
+      expect(commitFindings([at(['PROJ-1'], ['subject']), at([], ['subject', 'body'])], false, false, 'context'))
+        .toEqual(['unknown-reference']);
+    });
+  });
 });
 
 describe('summarise and decideVerdict', () => {

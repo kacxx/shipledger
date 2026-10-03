@@ -1,5 +1,5 @@
 import { usageError } from './errors.js';
-import { decideVerdict, summarise, summariseV1 } from './core/findings.js';
+import { decideVerdict, referenceFindings, summarise, summariseV1 } from './core/findings.js';
 import { canonicalStringify } from './core/canonical.js';
 import { commitKey } from './notes.js';
 import type {
@@ -158,7 +158,7 @@ function assertVerifiedSemanticsV2(verified: VerifiedChangesetV2): void {
       ? []
       : commit.references.length === 0
         ? ['no-reference']
-        : commit.references.some((r) => r.resolvesTo.length === 0) ? ['unknown-reference'] : [];
+        : referenceFindings(commit.references, verified.policy.bodyReferences);
     if (canonicalStringify(commit.findings) !== canonicalStringify(expected)) {
       problems.push(`${where} declares findings [${commit.findings.join(', ')}] but its references and attribution imply [${expected.join(', ')}]`);
     }

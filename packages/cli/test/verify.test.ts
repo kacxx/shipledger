@@ -27,6 +27,26 @@ function reconcileIgnoredClaim(): VerifiedChangesetV2 {
   });
 }
 
+function reconcileBodyContext(): VerifiedChangesetV2 {
+  const config = mergeConfig({
+    version: 1, preset: 'github-oss@3', repos: [{ name: 'repo-a', path: '../a' }]
+  }, '/tmp');
+  return reconcile({
+    config, compiled: compileAll(config),
+    changeset: {
+      version: 1, id: 'r', source: { kind: 'k', ref: 'r', fetchedAt: '2026-01-01T00:00:00Z' },
+      items: [{ id: '#12', title: 't', type: 'fix', status: 'merged', tokens: [{ matcher: 'pr-ref', token: '#12', repo: 'repo-a' }] }],
+      ranges: [{ repo: 'repo-a', base: 'v1', head: 'v2' }]
+    },
+    commits: [{
+      repo: 'repo-a', sha: 'a'.repeat(40), subject: 'fix: tidy (#12)', body: 'Follow-up to #9.',
+      author: 'Dev', committedAt: '2026-01-01T00:00:00Z'
+    }],
+    ranges: [],
+    cliVersion: '0.3.0', configFingerprint: `sha256:${'0'.repeat(64)}`
+  });
+}
+
 const here = dirname(fileURLToPath(import.meta.url));
 const load = (): VerifiedChangeset => validateVerified(
   JSON.parse(readFileSync(join(here, 'fixtures', 'verified-example.json'), 'utf8'))
@@ -47,6 +67,19 @@ describe('assertVerifiedSemantics', () => {
     const v = load();
     v.commits[0]!.references[0]!.resolvesTo = ['GHOST-1'];
     expect(() => assertVerifiedSemantics(v)).toThrow(/GHOST-1/);
+  });
+
+  it('accepts a body reference recorded as context under the policy the artifact carries', () => {
+    const v = reconcileBodyContext();
+    expect(v.policy.bodyReferences).toBe('context');
+    expect(v.commits[0]!.findings).toEqual([]);
+    expect(() => assertVerifiedSemantics(validateVerified(JSON.parse(JSON.stringify(v))))).not.toThrow();
+  });
+
+  it('rejects context findings once the policy is stripped from the artifact', () => {
+    const v = reconcileBodyContext();
+    delete v.policy.bodyReferences;
+    expect(() => assertVerifiedSemantics(v)).toThrow(/imply \[unknown-reference\]/);
   });
 
   it('rejects a commit whose findings contradict its references', () => {

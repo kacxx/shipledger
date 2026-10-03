@@ -36,6 +36,18 @@ const COMMON_IGNORE: IgnoreConfig = {
   subjects: ['^Merge branch', '^chore\\(deps\\)']
 };
 
+// Release automation commits ("chore(main): release 1.2.3" from release-please,
+// "chore(release): 1.2.3" from semantic-release) are never listed in the release
+// notes they produce.
+const OSS_IGNORE_V3: IgnoreConfig = {
+  authors: COMMON_IGNORE.authors,
+  subjects: [
+    ...COMMON_IGNORE.subjects,
+    '^chore(\\([\\w./-]+\\))?: release ([\\w@./-]+ )?v?\\d+\\.\\d+\\.\\d+',
+    '^chore\\(release\\): v?\\d+\\.\\d+\\.\\d+'
+  ]
+};
+
 const REGISTRY: Record<string, Record<number, PresetDefaults>> = {
   'tracker-keys': {
     1: {
@@ -63,6 +75,12 @@ const REGISTRY: Record<string, Record<number, PresetDefaults>> = {
       history: 'first-parent',
       ignore: COMMON_IGNORE,
       policy: { failOn: ['unknown-reference', 'range-divergence'] }
+    },
+    3: {
+      matchers: [PR_REF_V2_SUBJECT_AND_BODY],
+      history: 'first-parent',
+      ignore: OSS_IGNORE_V3,
+      policy: { failOn: ['unknown-reference', 'range-divergence'], bodyReferences: 'context' }
     }
   }
 };
