@@ -66,6 +66,7 @@ export function runDoctor(argv: string[], cwd: string): number {
     lines.push(`shipledger ${CLI_VERSION}`);
     lines.push(`preset: ${config.presetName}@${config.presetVersion}`);
     lines.push(`policy failOn: ${config.policy.failOn.join(', ') || '(none)'}`);
+    lines.push(`policy bodyReferences: ${config.policy.bodyReferences ?? 'strict (default)'}`);
     lines.push(`config fingerprint: ${configFingerprint}`);
 
     const tag = (o: ConfigOrigin): string => o === 'adopter' ? '[adopter override]' : '[preset]';

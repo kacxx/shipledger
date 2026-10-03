@@ -6,6 +6,9 @@ import { renderReport } from '../../src/render/report.js';
 import { renderChangelog } from '../../src/render/changelog.js';
 import { renderReleaseNotes } from '../../src/render/release-notes.js';
 import { validateVerified } from '../../src/config/validate.js';
+import { mergeConfig } from '../../src/config/load.js';
+import { compileAll } from '../../src/core/compile.js';
+import { reconcile } from '../../src/core/reconcile.js';
 import type { NotesFile, ResolvedLinks, VerifiedChangeset } from '../../src/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -1034,5 +1037,42 @@ describe('golden files', () => {
 
   it('release notes match byte for byte', () => {
     expect(renderReleaseNotes(verified, notes)).toBe(golden('release-notes'));
+  });
+});
+
+describe('renderReport body references waived as context', () => {
+  const render = (preset: string): string => {
+    const config = mergeConfig({ version: 1, preset, repos: [{ name: 'repo-a', path: '../a' }] }, '/tmp');
+    return renderReport(reconcile({
+      config, compiled: compileAll(config),
+      changeset: {
+        version: 1, id: 'r', source: { kind: 'k', ref: 'r', fetchedAt: '2026-01-01T00:00:00Z' },
+        items: [{ id: '#12', title: 't', type: 'fix', status: 'merged', tokens: [{ matcher: 'pr-ref', token: '#12', repo: 'repo-a' }] }],
+        ranges: [{ repo: 'repo-a', base: 'v1', head: 'v2' }]
+      },
+      commits: [{
+        repo: 'repo-a', sha: 'a'.repeat(40), subject: 'fix: tidy (#12)', body: 'Follow-up to #9.',
+        author: 'Dev', committedAt: '2026-01-01T00:00:00Z'
+      }],
+      ranges: [{
+        repo: 'repo-a', base: 'v1', baseSha: '1'.repeat(40), head: 'v2', headSha: '2'.repeat(40),
+        include: [], mergeBase: '1'.repeat(40), baseIsAncestorOfHead: true, commitsOnlyInBase: 0,
+        effectiveDelta: [], findings: []
+      }],
+      cliVersion: '0.3.0', configFingerprint: `sha256:${'0'.repeat(64)}`
+    }));
+  };
+
+  it('marks the waived reference and counts it in the summary', () => {
+    const text = render('github-oss@3');
+    expect(text).toContain('#9 (pr-ref/body) → context, not claimed');
+    expect(text).toContain('| Body context | 1 unresolved body reference(s) waived');
+  });
+
+  it('shows neither under a strict policy, where the reference is a finding', () => {
+    const text = render('github-oss@2');
+    expect(text).not.toContain('context, not claimed');
+    expect(text).not.toContain('| Body context |');
+    expect(text).toContain('unknown\\-reference');
   });
 });

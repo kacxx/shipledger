@@ -36,6 +36,24 @@ const COMMON_IGNORE: IgnoreConfig = {
   subjects: ['^Merge branch', '^chore\\(deps\\)']
 };
 
+// Release automation commits ("chore(main): release 1.2.3" from release-please,
+// "chore(release): 1.2.3" from semantic-release) are never listed in the release
+// notes they produce. Each pattern is anchored at both ends so a commit that only
+// starts like one ("chore: release 1.2.3 and fix auth") is still judged.
+const SEMVER = 'v?\\d+\\.\\d+\\.\\d+(-[\\w.]+)?(\\+[\\w.]+)?';
+const PR_SUFFIX = '( \\(#\\d+\\))?';
+const OSS_IGNORE_V3: IgnoreConfig = {
+  authors: COMMON_IGNORE.authors,
+  subjects: [
+    ...COMMON_IGNORE.subjects,
+    `^chore(\\([\\w./-]+\\))?: release ([\\w@./-]+ )?${SEMVER}${PR_SUFFIX}$`,
+    // release-please's combined monorepo release names the branch instead of a version.
+    `^chore\\(([\\w./-]+)\\): release \\1${PR_SUFFIX}$`,
+    `^chore: release (main|master)${PR_SUFFIX}$`,
+    `^chore\\(release\\): ${SEMVER}( \\[skip ci\\])?${PR_SUFFIX}$`
+  ]
+};
+
 const REGISTRY: Record<string, Record<number, PresetDefaults>> = {
   'tracker-keys': {
     1: {
@@ -63,6 +81,12 @@ const REGISTRY: Record<string, Record<number, PresetDefaults>> = {
       history: 'first-parent',
       ignore: COMMON_IGNORE,
       policy: { failOn: ['unknown-reference', 'range-divergence'] }
+    },
+    3: {
+      matchers: [PR_REF_V2_SUBJECT_AND_BODY],
+      history: 'first-parent',
+      ignore: OSS_IGNORE_V3,
+      policy: { failOn: ['unknown-reference', 'range-divergence'], bodyReferences: 'context' }
     }
   }
 };

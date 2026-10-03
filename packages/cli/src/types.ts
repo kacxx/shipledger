@@ -36,7 +36,14 @@ export interface RepoConfig { name: string; path: string }
 /** `authors` are exact `%an` values. `subjects` are regular expressions. */
 export interface IgnoreConfig { authors: string[]; subjects: string[] }
 
-export interface PolicyConfig { failOn: FindingName[] }
+/**
+ * `bodyReferences: 'context'` treats an unresolved reference found only in a
+ * commit body ("follow-up to #12") as context when another reference on the
+ * commit resolves. Absent means `'strict'`: every unresolved reference counts.
+ */
+export type BodyReferencesMode = 'strict' | 'context';
+
+export interface PolicyConfig { failOn: FindingName[]; bodyReferences?: BodyReferencesMode }
 
 export interface RawConfig {
   version: 1;

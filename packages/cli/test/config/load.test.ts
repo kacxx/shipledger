@@ -41,6 +41,16 @@ describe('mergeConfig', () => {
     expect(merged.ignore.subjects).toEqual(['^WIP']);
   });
 
+  it('replaces the whole policy, so an override without bodyReferences is strict', () => {
+    const merged = mergeConfig({ ...base, preset: 'github-oss@3', policy: { failOn: [] } }, resolve('/tmp'));
+    expect(merged.policy).toEqual({ failOn: [] });
+  });
+
+  it('lets a policy override set bodyReferences', () => {
+    const merged = mergeConfig({ ...base, policy: { failOn: [], bodyReferences: 'context' } }, resolve('/tmp'));
+    expect(merged.policy.bodyReferences).toBe('context');
+  });
+
   it('records the resolved preset name and version', () => {
     const merged = mergeConfig({ ...base, preset: 'github-oss@1' }, resolve('/tmp'));
     expect(merged.presetName).toBe('github-oss');

@@ -60,7 +60,7 @@ export function reconcile(input: ReconcileInput): VerifiedChangesetV2 {
     }
     return {
       ...base, attribution, ignored: rule === null ? null : { rule }, references,
-      findings: commitFindings(references, rule !== null, divergent)
+      findings: commitFindings(references, rule !== null, divergent, config.policy.bodyReferences)
     };
   });
 
