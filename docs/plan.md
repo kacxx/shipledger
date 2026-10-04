@@ -1,5 +1,7 @@
 # shipledger Reconciler Implementation Plan
 
+> **Historical.** This is the original build plan, kept for its reasoning. The code has moved on since, so its paths, steps and checkboxes are out of date. See `docs/design.md` for the current design and `AGENTS.md` for how to work on the repository.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the shipledger CLI — a repository-read-only tool that reconciles a claimed changeset against local git history across one or more repositories and renders release artifacts from the verified result.
