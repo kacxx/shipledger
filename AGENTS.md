@@ -55,7 +55,9 @@ Run one file with `npx vitest run test/<path>` from `packages/cli`.
 - **Bump the CLI version when output changes.** Any change to reconciliation,
   the artifact or rendered output bumps `packages/cli/package.json`. The config
   fingerprint includes the CLI version, and `render --verify-against-repos`
-  refuses artifacts written by a different version.
+  refuses artifacts written by a different version. Before bumping, rerun the
+  regression corpus against the new build and report the result in the PR's
+  version section.
 - **A version bump touches** `packages/cli/package.json`, `package-lock.json` and
   the expected version in `packages/cli/test/pack.test.ts`.
 - **Bump `cliRange` only when the skill needs the new CLI.** When you do, update
