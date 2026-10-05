@@ -55,7 +55,13 @@ Run one file with `npx vitest run test/<path>` from `packages/cli`.
 - **Bump the CLI version when output changes.** Any change to reconciliation,
   the artifact or rendered output bumps `packages/cli/package.json`. The config
   fingerprint includes the CLI version, and `render --verify-against-repos`
-  refuses artifacts written by a different version.
+  refuses artifacts written by a different version. Maintainers: before merging
+  a version bump, rerun the private regression corpus (#36) against the PR's
+  build, and report verdict changes, new and resolved findings, other diffs,
+  verification failures, and undetected or unexpected mutations (or "no diff")
+  in the PR's version section. After merging, rebuild at the merged commit and
+  accept the new baseline in the corpus. Anyone who can't run the corpus says so
+  in the version section; never report a result you didn't run.
 - **A version bump touches** `packages/cli/package.json`, `package-lock.json` and
   the expected version in `packages/cli/test/pack.test.ts`.
 - **Bump `cliRange` only when the skill needs the new CLI.** When you do, update
