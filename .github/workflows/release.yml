@@ -41,17 +41,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
       # Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
-      - run: npm install -g npm@^11.5.1
+      - run: npm install -g npm@11.21.0
       - run: npm ci
-      - run: |
-          git config --global user.email "ci@example.invalid"
-          git config --global user.name "CI"
-      - run: npm test
+      # CI already passed on the release PR. Anything that can fail here runs
+      # after the tag exists, and release tags can't be moved.
       # prepack builds, and write-build-info.mjs records the tagged commit.
       - run: npm publish --workspace shipledger --access public

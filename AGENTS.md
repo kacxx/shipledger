@@ -74,10 +74,23 @@ Run one file with `npx vitest run test/<path>` from `packages/cli`.
   on the release PR. After merging, rebuild at the tagged commit and accept the
   new baseline in the corpus. Anyone who can't run the corpus says so; never
   report a result you didn't run.
-- **Bump `cliRange` only when the skill needs the new CLI.** When you do, update
-  `plugin/skills/shipledger/cli-compatibility.json` and every
-  `--skill-cli-range` example in `SKILL.md`; `plugin.test.ts` fails if they
-  disagree.
+- **release-please sets `cliRange` too.** The skill and the CLI ship from the
+  same commit, so each release sets `cliRange` in
+  `plugin/skills/shipledger/cli-compatibility.json` and the
+  `--skill-cli-range` example in `SKILL.md` to `^X.Y.Z` of that release. It
+  finds them by the `x-release-please-version` marker on each line; keep the
+  marker on any line you add. Don't edit the range by hand: `plugin.test.ts`
+  requires the CLI version to satisfy it, and a 0.x caret range excludes the
+  next minor version.
+- **If `publish` fails, the tag and GitHub release already exist.** The "Protect
+  release tags" ruleset blocks moving or deleting `v*` tags. Fix the cause and
+  re-run the failed `publish` job. If the trusted publisher on npmjs.com has
+  expired (it lapses unless it completes a publish within 2 days of being
+  added), add a new one first. If re-running can't work, release a patch
+  version instead.
+- **`RELEASE_PLEASE_TOKEN` expires.** It is a fine-grained token with an expiry
+  date. When it lapses, the release job fails on its first step; replace the
+  secret with a new token scoped the same way.
 - **Escape at the renderer.** Item ids, titles and statuses come from a tracker,
   and subjects and ref names from git. `plain` and `oneLine` in `render/text.ts`
   only replace control and bidirectional-text characters; use `plain` for
