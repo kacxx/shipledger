@@ -114,7 +114,7 @@ describe('computeBuildDigest (manifest v1)', () => {
   it('keeps REQUIRED_ENTRY in sync with the package.json bin', () => {
     const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
     const bin = (JSON.parse(readFileSync(pkgPath, 'utf8')) as { bin: { shipledger: string } }).bin.shipledger;
-    expect(bin).toBe(`./${REQUIRED_ENTRY}`);
+    expect(bin).toBe(REQUIRED_ENTRY);
   });
 
   it('is polluted by a stale artifact left in dist/ (why the build must clean dist)', () => {

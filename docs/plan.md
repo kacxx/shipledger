@@ -152,7 +152,7 @@ dist/
   "description": "Reconcile a claimed release changeset against local git history",
   "license": "MIT",
   "type": "module",
-  "bin": { "shipledger": "./dist/cli/index.js" },
+  "bin": { "shipledger": "dist/cli/index.js" },
   "engines": { "node": ">=20.10" },
   "files": ["dist", "schemas"],
   "dependencies": { "ajv": "^8.17.1" },
