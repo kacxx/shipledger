@@ -13,7 +13,7 @@ describe('mark-bin-executable', () => {
   it.skipIf(process.platform === 'win32')('makes the bin entry executable after a rebuild', () => {
     const root = mkdtempSync(join(tmpdir(), 'shipledger-bin-'));
     try {
-      writeFileSync(join(root, 'package.json'), JSON.stringify({ bin: { shipledger: './dist/cli/index.js' } }));
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ bin: { shipledger: 'dist/cli/index.js' } }));
       mkdirSync(join(root, 'dist', 'cli'), { recursive: true });
       const entry = join(root, 'dist', 'cli', 'index.js');
       writeFileSync(entry, '#!/usr/bin/env node\n');
