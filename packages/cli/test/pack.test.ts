@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 
 const pkgDir = join(dirname(fileURLToPath(import.meta.url)), '..');
+const pkgVersion = (JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8')) as { version: string }).version;
 let work: string;
 let entryPoint: string;
 
@@ -65,7 +66,7 @@ describe('installed package', () => {
     const r = run(['identity']);
     expect(r.code).toBe(0);
     const report = JSON.parse(r.out);
-    expect(report.cliVersion).toBe('0.3.4');
+    expect(report.cliVersion).toBe(pkgVersion);
     expect(report.build.digest).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(report.build.digestManifestVersion).toBe('1');
     // prepack ran write-build-info.mjs inside the git worktree, so the commit is captured.
