@@ -52,22 +52,45 @@ Run one file with `npx vitest run test/<path>` from `packages/cli`.
   `schemas/verified-changeset-v2.schema.json` too (`@3`'s `bodyReferences`
   needed both). A new preset changes output, so the version and `cliRange`
   rules below apply.
-- **Bump the CLI version when output changes.** Any change to reconciliation,
-  the artifact or rendered output bumps `packages/cli/package.json`. The config
-  fingerprint includes the CLI version, and `render --verify-against-repos`
-  refuses artifacts written by a different version. Maintainers: before merging
-  a version bump, rerun the private regression corpus (#36) against the PR's
-  build, and report verdict changes, new and resolved findings, other diffs,
-  verification failures, and undetected or unexpected mutations (or "no diff")
-  in the PR's version section. After merging, rebuild at the merged commit and
-  accept the new baseline in the corpus. Anyone who can't run the corpus says so
-  in the version section; never report a result you didn't run.
-- **A version bump touches** `packages/cli/package.json`, `package-lock.json` and
-  the expected version in `packages/cli/test/pack.test.ts`.
-- **Bump `cliRange` only when the skill needs the new CLI.** When you do, update
-  `plugin/skills/shipledger/cli-compatibility.json` and every
-  `--skill-cli-range` example in `SKILL.md`; `plugin.test.ts` fails if they
-  disagree.
+- **release-please sets the version; feature PRs don't.** It reads the PR
+  titles merged to `main` (they become the squash-merge subjects) and keeps a
+  release PR open that bumps `packages/cli/package.json`, the CLI's entry in
+  the root `package-lock.json` and `packages/cli/CHANGELOG.md`. While the
+  version is below 1.0, `feat` bumps the minor version, `fix` the patch
+  version, and a breaking change (`!`) the minor version. Merging the release
+  PR tags `vX.Y.Z`, creates the GitHub release and publishes to npm
+  (`.github/workflows/release.yml`). Never edit the version by hand.
+- **A PR that changes output needs a `feat` or `fix` title.** Any change to
+  reconciliation, the artifact or rendered output must ship in a new version:
+  the config fingerprint includes the CLI version, and
+  `render --verify-against-repos` refuses artifacts written by a different
+  version. A `docs`, `chore`, `test` or `refactor` title produces no release,
+  so it must not change output. Say in the PR description whether output
+  changes.
+- **Rerun the corpus on the release PR.** Maintainers: before merging a
+  release PR, rerun the private regression corpus (#36) against its build, and
+  report verdict changes, new and resolved findings, other diffs, verification
+  failures, and undetected or unexpected mutations (or "no diff") in a comment
+  on the release PR. After merging, rebuild at the tagged commit and accept the
+  new baseline in the corpus. Anyone who can't run the corpus says so; never
+  report a result you didn't run.
+- **release-please sets `cliRange` too.** The skill and the CLI ship from the
+  same commit, so each release sets `cliRange` in
+  `plugin/skills/shipledger/cli-compatibility.json` and the
+  `--skill-cli-range` example in `SKILL.md` to `^X.Y.Z` of that release. It
+  finds them by the `x-release-please-version` marker on each line; keep the
+  marker on any line you add. Don't edit the range by hand: `plugin.test.ts`
+  requires the CLI version to satisfy it, and a 0.x caret range excludes the
+  next minor version.
+- **If `publish` fails, the tag and GitHub release already exist.** The "Protect
+  release tags" ruleset blocks moving or deleting `v*` tags. Fix the cause and
+  re-run the failed `publish` job. If the trusted publisher on npmjs.com has
+  expired (it lapses unless it completes a publish within 2 days of being
+  added), add a new one first. If re-running can't work, release a patch
+  version instead.
+- **`RELEASE_PLEASE_TOKEN` expires.** It is a fine-grained token with an expiry
+  date. When it lapses, the release job fails on its first step; replace the
+  secret with a new token scoped the same way.
 - **Escape at the renderer.** Item ids, titles and statuses come from a tracker,
   and subjects and ref names from git. `plain` and `oneLine` in `render/text.ts`
   only replace control and bidirectional-text characters; use `plain` for
@@ -92,8 +115,10 @@ Run one file with `npx vitest run test/<path>` from `packages/cli`.
   check they passed before merging.
 - The repository owner can't approve their own PRs, so agent reviews are posted
   as comment reviews with inline comments.
-- PR descriptions usually open with `## Summary` or `## Change`, say how the
-  version moves when it does, and end with a testing section.
+- PR titles follow Conventional Commits (`feat:`, `fix:`, `docs:`, `feat!:`),
+  because release-please reads them. PR descriptions usually open with
+  `## Summary` or `## Change`, say whether output changes, and end with a
+  testing section.
 - Leave follow-up work as a GitHub issue, not as a note in a PR or chat.
 
 ## Known environment quirks

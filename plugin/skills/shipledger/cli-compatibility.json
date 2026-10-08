@@ -1,1 +1,1 @@
-{ "cliRange": "^0.3.4" }
+{ "cliRange": "^0.3.4", "//": "x-release-please-version" }
