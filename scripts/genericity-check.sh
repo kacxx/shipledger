@@ -22,7 +22,7 @@ if [ -n "${GENERICITY_EXTRA_SAFE_KEYS:-}" ]; then
 fi
 
 SAFE_DEV_USERS="alice|bob|ci|test|example|runner|actions|user"
-SAFE_GITHUB_OWNERS="kacxx|example|acme|org|other|elsewhere|actions|github|nodejs|npm|isaacs|sindresorhus|epoberezkin|fastify|ajv-validator|eslint|vitest-dev|microsoft|jestjs|chaijs|mochajs|typescriptlang|chalk|yargs|DefinitelyTyped|sponsors|prettier|rollup|vitejs|facebook|vercel|lukeed|ljharb|es-shims|gulpjs|mdn|tc39|web-infra-dev|unjs|antfu|pnpm|webdriverio|standard|feross|substack|browserify|gruntjs|karma-runner|postcss|babel|webpack|lodash|expressjs|koajs|hapijs|angular|sveltejs|vuejs|remix-run|nextjs"
+SAFE_GITHUB_OWNERS="kacxx|example|acme|org|other|elsewhere|actions|github|googleapis|nodejs|npm|isaacs|sindresorhus|epoberezkin|fastify|ajv-validator|eslint|vitest-dev|microsoft|jestjs|chaijs|mochajs|typescriptlang|chalk|yargs|DefinitelyTyped|sponsors|prettier|rollup|vitejs|facebook|vercel|lukeed|ljharb|es-shims|gulpjs|mdn|tc39|web-infra-dev|unjs|antfu|pnpm|webdriverio|standard|feross|substack|browserify|gruntjs|karma-runner|postcss|babel|webpack|lodash|expressjs|koajs|hapijs|angular|sveltejs|vuejs|remix-run|nextjs"
 
 SKIP_FILES_RE='(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|\.tmp/|node_modules/|dist/|\.git/)'
 
