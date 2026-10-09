@@ -59,10 +59,13 @@ Run one file with `npx vitest run test/<path>` from `packages/cli`.
   version is below 1.0, `feat` bumps the minor version, `fix` the patch
   version, and a breaking change (`!`) the minor version. Merging the release
   PR tags `vX.Y.Z`, creates the GitHub release and publishes to npm
-  (`.github/workflows/release.yml`). Never edit the version by hand. To force
-  a release without a `feat` or `fix`, add a `Release-As: X.Y.Z` footer to a
-  commit; squash merges keep commit messages, so check the footer is still in
-  the squash commit message before merging.
+  (`.github/workflows/release.yml`). Never edit the version by hand.
+  release-please only counts commits that change files under `packages/cli`,
+  and skips a release whose changelog would be empty. `build` commits are
+  listed in the changelog and bump the patch version; `docs`, `chore`, `test`,
+  `refactor`, `style` and `ci` are hidden (`changelog-sections` in
+  `release-please-config.json`). A `Release-As: X.Y.Z` footer sets the
+  version of the next release but does not create one on its own.
 - **A PR that changes output needs a `feat` or `fix` title.** Any change to
   reconciliation, the artifact or rendered output must ship in a new version:
   the config fingerprint includes the CLI version, and
