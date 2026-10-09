@@ -131,9 +131,12 @@ only issues the forge links as closed by that PR; an issue the body merely
 mentions stays unresolved for triage.
 
 **Generated release notes leave out hidden commit types.** A changelog tool such
-as release-please lists only the commit types its configuration shows (for
-release-please, `changelog-sections` in `release-please-config.json`), so a merged
-`docs:` or `ci:` PR shipped in the range but is absent from the notes. Built from
+as release-please lists only the commit types its configuration shows, so a merged
+`docs:` or `ci:` PR shipped in the range but is absent from the notes. For
+release-please, read `changelog-sections` in `release-please-config.json`: a
+section with `"hidden": true` is left out. Without that setting, release-please
+typically hides `chore`, `ci`, `docs`, `style`, `test` and `refactor`; don't guess
+when the file is there. Built from
 the notes alone, the claim fails the release with `unknown-reference` on each of
 those PRs, and the CLI is right to report it. Do not add an ignore rule for those
 types: a subject cannot show that a `docs:` PR changes no output. Instead, after
@@ -147,6 +150,10 @@ the first `check`, take each `unknown-reference` that is a pull request and:
 3. Otherwise, propose adding it as an item, say which hidden section it came
    from, and add it once the user confirms. Keep `source.ref` pointing at the
    release notes, and tell the user the claim now extends them.
+
+When you report this, call it claim hygiene: the notes were filtered by design,
+so the claim was incomplete, not the release. Do not describe these PRs as
+missing or unexpected work.
 
 **Under `github-oss@3`, check waived body references before relying on the
 waiver.** The report marks them `context, not claimed`. Most are citations
