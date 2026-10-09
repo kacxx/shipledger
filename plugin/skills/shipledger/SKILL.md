@@ -130,6 +130,24 @@ Add each number as a `pr-ref` token on the PR's item (`#10` on item `#12`). Add
 only issues the forge links as closed by that PR; an issue the body merely
 mentions stays unresolved for triage.
 
+**Generated release notes leave out hidden commit types.** A changelog tool such
+as release-please lists only the commit types its configuration shows (for
+release-please, `changelog-sections` in `release-please-config.json`), so a merged
+`docs:` or `ci:` PR shipped in the range but is absent from the notes. Built from
+the notes alone, the claim fails the release with `unknown-reference` on each of
+those PRs, and the CLI is right to report it. Do not add an ignore rule for those
+types: a subject cannot show that a `docs:` PR changes no output. Instead, after
+the first `check`, take each `unknown-reference` that is a pull request and:
+
+1. Confirm it is merged into the release branch and that its type is one the
+   tool's configuration hides.
+2. List the files it changed (`gh pr view <n> --json files`). If it touches the
+   shipped code, flag it to the user instead of adding it: a hidden type that
+   changes output is a release-process defect, not a claim gap.
+3. Otherwise, propose adding it as an item, say which hidden section it came
+   from, and add it once the user confirms. Keep `source.ref` pointing at the
+   release notes, and tell the user the claim now extends them.
+
 **Under `github-oss@3`, check waived body references before relying on the
 waiver.** The report marks them `context, not claimed`. Most are citations
 ("follow-up to #9"), but a squash-merge body lists the PR's own commits, so it can
