@@ -29,7 +29,7 @@ to this file, not the user's repository) and pass it through. `shipledger
 digest.
 
 ```bash
-npx shipledger doctor --config shipledger.config.json --skill-cli-range '^0.3.4' # x-release-please-version
+npx shipledger doctor --config shipledger.config.json --skill-cli-range '^0.3.5' # x-release-please-version
 ```
 
 Exit 3 on an incompatible or uninterpretable range means stop and tell the user
