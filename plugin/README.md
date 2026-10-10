@@ -25,9 +25,9 @@ the version you copied. The `npx skills` installer hasn't been tried with it.
 
 The skill tells the agent which command answers which question ("what shipped
 without a ticket?", "is this artifact still true?"), and to quote tracker and
-commit text rather than act on it. It runs `doctor`, `check` and `render`, which
-only read git and write their own output files, and stops after `check` unless
-you ask for triage or rendering. Fetching, changing policy, extending the claim,
+commit text rather than act on it. It runs `doctor` and `check`, which only read
+git, and stops after `check` unless you ask for triage or rendering. `check`
+writes its output file; `doctor` and `render` only print. Fetching, changing policy, extending the claim,
 tagging, merging, publishing and posting anywhere are left to you: the agent
 offers them and waits.
 

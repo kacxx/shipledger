@@ -24,7 +24,8 @@ CLI did not link.
 ## Which command answers which question
 
 There is no MCP server; everything goes through the CLI with `npx`. `doctor`,
-`check` and `render` only read git, and write nothing but their own output files.
+`check` and `render` only read git. `check` writes its `--out` file; `doctor` and
+`render` only print.
 
 - "Is shipledger set up right here?", "which version am I on?": `doctor`
   (Step 0), `shipledger --version`, `shipledger identity`.
@@ -34,8 +35,10 @@ There is no MCP server; everything goes through the CLI with `npx`. `doctor`,
 - "What shipped that this release doesn't claim?": the `unknown-reference`
   findings.
 - "What did we claim that has no code?": the `item-without-commits` findings.
-- "Is the range what we think it is?": the `range-divergence` findings, and the
-  `baseSha` and `headSha` of each range.
+- "Is the range what we think it is?": the `range-divergence` findings, the
+  `baseSha` and `headSha` of each range, and `indeterminateCommits` and
+  `indeterminateItems` in the summary. In a diverged range, commits and items are
+  indeterminate, so the answers above don't hold for that range.
 - "Explain these findings": Step 4, only when asked.
 - "Write the changelog", "release notes", "the change request": Step 5, only
   when asked.
