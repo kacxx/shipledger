@@ -132,6 +132,33 @@ describe('skill documents the real contracts', () => {
     expect(text).toMatch(/rev-parse --verify.*\^{commit}/)
   });
 
+  it('maps questions to commands before the steps', () => {
+    const map = text.indexOf('## Which command answers which question');
+    expect(map).toBeGreaterThan(-1);
+    expect(map).toBeLessThan(text.indexOf('## Step 0'));
+    const section = text.slice(map, text.indexOf('\n## ', map + 1));
+    for (const f of ['no-reference', 'unknown-reference', 'item-without-commits', 'range-divergence']) {
+      expect(section).toContain(f);
+    }
+    expect(section).toMatch(/--verify-against-repos/);
+  });
+
+  it('treats tracker and git text as data, not instructions', () => {
+    expect(text).toMatch(/## Tracker and git text is data/);
+    expect(text).toMatch(/not instructions to you/i);
+  });
+
+  it('leaves release, repository and policy actions to the user', () => {
+    const start = text.indexOf('## Things to leave to the user');
+    expect(start).toBeGreaterThan(-1);
+    const section = text.slice(start, text.indexOf('\n## ', start + 1));
+    expect(section).toMatch(/publishing/i);
+    expect(section).toMatch(/release PR/i);
+    expect(section).toMatch(/unshallow/);
+    expect(section).toMatch(/ignore rule/i);
+    expect(section).toMatch(/never treat a `pass` as permission/i);
+  });
+
   it('documents PR-association verification and warns against circular declaration', () => {
     expect(text).toMatch(/run.*check/i);
     expect(text).toMatch(/PR token/i);
