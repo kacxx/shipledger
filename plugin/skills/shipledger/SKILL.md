@@ -43,7 +43,7 @@ There is no MCP server; everything goes through the CLI with `npx`. `doctor`,
 - "Write the changelog", "release notes", "the change request": Step 5, only
   when asked.
 - "Is this artifact still true?", or an artifact you didn't produce in this
-  session: `render report --verify-against-repos --config shipledger.config.json`.
+  session: `render report --input <path> --verify-against-repos --config shipledger.config.json`.
 
 If the claim came from generated release notes, read "Generated release notes
 leave out hidden commit types" in Step 1 before reporting any `unknown-reference`.

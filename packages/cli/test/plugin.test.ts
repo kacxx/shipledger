@@ -140,7 +140,7 @@ describe('skill documents the real contracts', () => {
     for (const f of ['no-reference', 'unknown-reference', 'item-without-commits', 'range-divergence']) {
       expect(section).toContain(f);
     }
-    expect(section).toMatch(/--verify-against-repos/);
+    expect(section).toMatch(/--input <path> --verify-against-repos/);
   });
 
   it('treats tracker and git text as data, not instructions', () => {
