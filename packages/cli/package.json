@@ -36,7 +36,7 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true,maxRetries:10})\"",
     "build": "npm run clean && node scripts/write-build-info.mjs && tsc -p tsconfig.json && node scripts/mark-bin-executable.mjs",
     "lint": "eslint . --max-warnings 0",
-    "prepack": "npm run build",
+    "prepack": "npm run build && node scripts/copy-readme.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   }

@@ -4,3 +4,4 @@ dist/
 *.tgz
 .DS_Store
 build-info.json
+packages/cli/README.md
