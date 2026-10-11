@@ -1,5 +1,5 @@
 import { buildNoteLookup, commitKey, unknownReferenceNote } from '../notes.js';
-import { oneLine } from './text.js';
+import { codeSpan, mdEscape } from './text.js';
 import type {
   CommitResult, CommitResultV1, ItemLink, ItemResult, ItemResultV1, Namespace, NotesFile,
   RangeResult, RangeResultV1, ResolvedLinks, ResolvedReferenceLink, VerifiedChangeset
@@ -12,19 +12,6 @@ export interface VerificationContext {
 }
 
 const short = (sha: string): string => sha.slice(0, 8);
-
-function mdEscape(text: string): string {
-  return oneLine(text).replace(/([\\`*_{}[\]()#+!|<>&~])/g, '\\$1');
-}
-
-function codeSpan(text: string): string {
-  const safe = oneLine(text).replace(/\|/g, '\\|');
-  const runs = safe.match(/`+/g);
-  const maxRun = runs ? Math.max(...runs.map((r) => r.length)) : 0;
-  if (maxRun === 0) return `\`${safe}\``;
-  const fence = '`'.repeat(maxRun + 1);
-  return `${fence} ${safe} ${fence}`;
-}
 
 function safeUrl(raw: string): string | null {
   // eslint-disable-next-line no-control-regex

@@ -1,4 +1,4 @@
-import { oneLine } from './text.js';
+import { mdEscape } from './text.js';
 import type { NotesFile, VerifiedChangeset } from '../types.js';
 
 /**
@@ -7,10 +7,10 @@ import type { NotesFile, VerifiedChangeset } from '../types.js';
  */
 const isIndeterminate = (i: { attribution?: string }): boolean => i.attribution === 'indeterminate';
 
-const entry = (i: { id: string; title: string }): string => `${oneLine(i.title)} (${oneLine(i.id)})`;
+const entry = (i: { id: string; title: string }): string => `${mdEscape(i.title)} (${mdEscape(i.id)})`;
 
 export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFile): string {
-  const out: string[] = [`## ${oneLine(verified.changeset.id)}`, ''];
+  const out: string[] = [`## ${mdEscape(verified.changeset.id)}`, ''];
 
   // `attribution` is absent on a v1 artifact, so v1 rendering is unchanged.
   const items = verified.items as Array<{
@@ -32,7 +32,7 @@ export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFil
   }
 
   for (const [type, items] of byType) {
-    out.push(`### ${oneLine(type)}`, '');
+    out.push(`### ${mdEscape(type)}`, '');
     for (const item of items) out.push(`* ${entry(item)}`);
     out.push('');
   }
@@ -55,7 +55,7 @@ export function renderReleaseNotes(verified: VerifiedChangeset, notes?: NotesFil
   if (orphans.length > 0) {
     out.push('### claimed but not in git', '');
     for (const i of orphans) {
-      out.push(`* ~${oneLine(i.title)}~ (${oneLine(i.id)})${i.status ? ` [${oneLine(i.status)}]` : ''}`);
+      out.push(`* ~${mdEscape(i.title)}~ (${mdEscape(i.id)})${i.status ? ` [${mdEscape(i.status)}]` : ''}`);
     }
     out.push('');
   }

@@ -1,14 +1,14 @@
 import { buildNoteLookup, commitKey, unknownReferenceNote } from '../notes.js';
-import { oneLine } from './text.js';
+import { codeSpan, mdEscape } from './text.js';
 import type { NotesFile, VerifiedChangeset } from '../types.js';
 
 function classificationLabel(n: { classification: string; impact?: string }): string {
-  return n.impact ? `${n.classification} (${n.impact})` : n.classification;
+  return n.impact ? `${mdEscape(n.classification)} (${mdEscape(n.impact)})` : mdEscape(n.classification);
 }
 
 export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile): string {
   const lookup = buildNoteLookup(notes ?? { version: 1 });
-  const out: string[] = [`# ${oneLine(verified.changeset.id)}`, ''];
+  const out: string[] = [`# ${mdEscape(verified.changeset.id)}`, ''];
 
   // Only determinately-satisfied items are presented as changes; an
   // indeterminate-linked item has commits but unprovable attribution (ADR 0008)
@@ -24,7 +24,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Changes', '');
     for (const item of linked) {
       const n = item.commits.length;
-      out.push(`- **${oneLine(item.id)}** ${oneLine(item.title)} (${n} commit${n === 1 ? '' : 's'})`);
+      out.push(`- **${mdEscape(item.id)}** ${mdEscape(item.title)} (${n} commit${n === 1 ? '' : 's'})`);
     }
     out.push('');
   }
@@ -34,7 +34,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Attribution indeterminate (divergent range)', '');
     for (const i of indeterminate) {
       const n = i.commits.length;
-      out.push(`- **${oneLine(i.id)}** ${oneLine(i.title)}${n > 0 ? ` (${n} indeterminate commit${n === 1 ? '' : 's'})` : ''}`);
+      out.push(`- **${mdEscape(i.id)}** ${mdEscape(i.title)}${n > 0 ? ` (${n} indeterminate commit${n === 1 ? '' : 's'})` : ''}`);
     }
     out.push('');
   }
@@ -56,8 +56,8 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
       ].map((n) => classificationLabel(n.entry));
       const bare = lookup.noReference.get(commitKey(c.repo, c.sha));
       const tags = [...dispositions, ...(bare ? [classificationLabel(bare)] : [])];
-      const refs = unresolved.length > 0 ? ` (refs ${unresolved.map((r) => oneLine(r.token)).join(', ')})` : '';
-      out.push(`- \`${oneLine(c.repo)} ${c.sha.slice(0, 8)}\` ${oneLine(c.subject)}${refs}${tags.length > 0 ? ` — ${tags.join(', ')}` : ''}`);
+      const refs = unresolved.length > 0 ? ` (refs ${unresolved.map((r) => mdEscape(r.token)).join(', ')})` : '';
+      out.push(`- ${codeSpan(`${c.repo} ${c.sha.slice(0, 8)}`)} ${mdEscape(c.subject)}${refs}${tags.length > 0 ? ` — ${tags.join(', ')}` : ''}`);
     }
     out.push('');
   }
@@ -67,7 +67,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Claimed but not found in git', '');
     for (const i of orphans) {
       const note = lookup.items.get(i.id);
-      out.push(`- **${oneLine(i.id)}** ${oneLine(i.title)}${i.status ? ` [${oneLine(i.status)}]` : ''}${note ? ` — ${classificationLabel(note)}` : ''}`);
+      out.push(`- **${mdEscape(i.id)}** ${mdEscape(i.title)}${i.status ? ` [${mdEscape(i.status)}]` : ''}${note ? ` — ${classificationLabel(note)}` : ''}`);
     }
     out.push('');
   }
@@ -77,7 +77,7 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Incomplete ranges', '');
     for (const r of diverged) {
       const note = lookup.ranges.get(r.repo);
-      out.push(`- \`${oneLine(r.repo)}\` ${oneLine(r.base)}..${oneLine(r.head)} — ${r.commitsOnlyInBase} commit(s) only in base are not represented${note ? ` — ${classificationLabel(note)}` : ''}`);
+      out.push(`- ${codeSpan(r.repo)} ${mdEscape(r.base)}..${mdEscape(r.head)} — ${r.commitsOnlyInBase} commit(s) only in base are not represented${note ? ` — ${classificationLabel(note)}` : ''}`);
     }
     out.push('');
   }

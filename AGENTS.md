@@ -13,7 +13,7 @@ it without breaking the things that aren't obvious from the code.
   - `src/git` — the only code that shells out to git, and it only reads.
   - `src/config` — config loading, validation and the pinned presets (`presets.ts`).
   - `src/render` — `report`, `changelog`, `release-notes` and the check summary.
-    `render/text.ts` strips control characters; Markdown escaping is separate
+    `render/text.ts` strips control characters and escapes Markdown
     (see "Escape at the renderer" below).
   - `src/cli` — argument parsing, file I/O and exit codes.
   - `schemas/` — JSON schemas for the config, changeset, notes and artifact.
@@ -100,10 +100,10 @@ Run one file with `npx vitest run test/<path>` from `packages/cli`.
 - **Escape at the renderer.** Item ids, titles and statuses come from a tracker,
   and subjects and ref names from git. `plain` and `oneLine` in `render/text.ts`
   only replace control and bidirectional-text characters; use `plain` for
-  terminal output. Markdown output also needs Markdown syntax escaped, as
-  `mdEscape` and `codeSpan` do in `report.ts`; without that, a title such as
-  `[x](https://example.com)` renders as a live link. `changelog` and
-  `release-notes` currently use only `oneLine` (issue #35).
+  terminal output. Markdown output also needs Markdown syntax escaped with
+  `mdEscape` and `codeSpan` from the same file, as `report`, `changelog` and
+  `release-notes` do; without that, a title such as
+  `[x](https://example.com)` renders as a live link.
 - **Keep the repository adopter-neutral.** CI scans every file, the PR title
   and body, commit messages and the branch name (`CONTRIBUTING-GENERICITY.md`).
   Use the synthetic namespaces it lists (`PROJ-1`, `example/repo`) in fixtures,

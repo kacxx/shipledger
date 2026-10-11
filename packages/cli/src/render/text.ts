@@ -16,3 +16,21 @@ export function plain(text: string): string {
 export function oneLine(text: string): string {
   return plain(text.replace(/[\r\n\t\v\f]+/g, ' '));
 }
+
+/**
+ * `oneLine`, then escapes Markdown syntax, so tracker and git text such as
+ * `[x](https://example.com)` renders as literal text rather than as markup.
+ */
+export function mdEscape(text: string): string {
+  return oneLine(text).replace(/([\\`*_{}[\]()#+!|<>&~])/g, '\\$1');
+}
+
+/** A Markdown code span that holds any text, backticks and table pipes included. */
+export function codeSpan(text: string): string {
+  const safe = oneLine(text).replace(/\|/g, '\\|');
+  const runs = safe.match(/`+/g);
+  const maxRun = runs ? Math.max(...runs.map((r) => r.length)) : 0;
+  if (maxRun === 0) return `\`${safe}\``;
+  const fence = '`'.repeat(maxRun + 1);
+  return `${fence} ${safe} ${fence}`;
+}
