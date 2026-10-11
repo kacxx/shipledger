@@ -1,4 +1,4 @@
-import { buildNoteLookup, commitKey, referenceKey } from '../notes.js';
+import { buildNoteLookup, commitKey, unknownReferenceNote } from '../notes.js';
 import { codeSpan, mdEscape } from './text.js';
 import type { NotesFile, VerifiedChangeset } from '../types.js';
 
@@ -46,10 +46,14 @@ export function renderChangelog(verified: VerifiedChangeset, notes?: NotesFile):
     out.push('## Unaccounted commits', '');
     for (const c of unaccounted) {
       const unresolved = c.references.filter((r) => r.resolvesTo.length === 0);
-      const dispositions = unresolved
-        .map((r) => lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token)))
-        .filter((n): n is NonNullable<typeof n> => Boolean(n))
-        .map((n) => classificationLabel(n));
+      // A commit-level note covers several references but is listed once.
+      const covering = unresolved
+        .map((r) => unknownReferenceNote(lookup, c.repo, c.sha, r.matcher, r.token))
+        .filter((n): n is NonNullable<typeof n> => Boolean(n));
+      const dispositions = [
+        ...covering.filter((n) => n.level === 'reference'),
+        ...covering.filter((n) => n.level === 'commit').slice(0, 1)
+      ].map((n) => classificationLabel(n.entry));
       const bare = lookup.noReference.get(commitKey(c.repo, c.sha));
       const tags = [...dispositions, ...(bare ? [classificationLabel(bare)] : [])];
       const refs = unresolved.length > 0 ? ` (refs ${unresolved.map((r) => mdEscape(r.token)).join(', ')})` : '';

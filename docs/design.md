@@ -219,11 +219,11 @@ Stores a required classification and explanatory sentence for each triaged findi
 | Section | Identifies its finding by | Record fields |
 | --- | --- | --- |
 | `noReference` | a commit | `repo`, `sha` |
-| `unknownReference` | a commit and reference tuple | `repo`, `sha`, `matcher`, `token` |
+| `unknownReference` | a commit and reference tuple, or a commit | `repo`, `sha`, and `matcher` with `token` unless commit-level |
 | `items` | an item | `item` |
 | `ranges` | a repo, unique in V1 | `repo` |
 
-Arrays rather than keyed maps because matcher ids and tokens are unconstrained text: any single-character delimiter can be forged into a collision, so `repo:sha:matcher:token` is not a safe key. Identifying `unknownReference` records by the full reference tuple rather than the commit alone still allows two unknown references on one commit to receive different dispositions.
+Arrays rather than keyed maps because matcher ids and tokens are unconstrained text: any single-character delimiter can be forged into a collision, so `repo:sha:matcher:token` is not a safe key. Identifying `unknownReference` records by the full reference tuple rather than the commit alone still allows two unknown references on one commit to receive different dispositions. A record may also omit `matcher` and `token` together, making it commit-level: it covers every unresolved reference on that commit that no reference-level record names. Release-branch commits often carry several references (`PROJ-12 … (#41) [release/1.4] (#45)`) that share one disposition, and one record per reference made notes files repetitive and easy to get out of step. Coverage stays exact: a commit-level record for a commit with no `unknown-reference` finding, one whose references are all named individually, or a second commit-level record for one commit is an error. The report writes a commit-level note once per commit and the changelog lists its classification once.
 
 **Coverage is exact, and supplying notes is all-or-nothing.** Omitting `--notes` is a legitimate, first-class choice: the artifact renders with an explicit untriaged marker, which is an honest statement that the findings have not been dispositioned. Supplying `--notes` is a claim that they have been, and is held to it. Every finding in the artifact must have exactly one record; a record naming a finding the artifact does not contain, a duplicate record for one finding, or a whitespace-only sentence is an error. A partial triage presented as a complete one is worse than no triage, because it silently understates what was left unexamined.
 
