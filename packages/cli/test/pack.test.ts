@@ -57,6 +57,11 @@ describe('installed package', () => {
     expect(run(['check', '--config', 'generated.config.json']).code).toBe(2);
   });
 
+  it('ships the repository README', () => {
+    const readme = readFileSync(join(work, 'node_modules', 'shipledger', 'README.md'), 'utf8');
+    expect(readme).toBe(readFileSync(join(pkgDir, '..', '..', 'README.md'), 'utf8'));
+  });
+
   it('resolves its published schemas from the installed tree', () => {
     // A schema resolution failure surfaces as an unexpected exit code here.
     expect(run(['render', 'report', '--input', 'nope.json']).out).toMatch(/Cannot read/);
