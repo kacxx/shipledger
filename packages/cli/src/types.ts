@@ -53,6 +53,8 @@ export interface RawConfig {
   matchers?: MatcherConfig[];
   history?: HistoryMode;
   ignore?: IgnoreConfig;
+  /** Added to the ignore rules in effect (the preset's, or `ignore` when present) rather than replacing them. */
+  extendIgnore?: Partial<IgnoreConfig>;
   policy?: PolicyConfig;
   links?: RawLinks;
 }
