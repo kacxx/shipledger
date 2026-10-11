@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { assertNotesCoverFindings, buildNoteLookup, commitKey, referenceKey } from '../src/notes.js';
 import { validateNotes, validateVerified } from '../src/config/validate.js';
 import { renderReport } from '../src/render/report.js';
+import { renderChangelog } from '../src/render/changelog.js';
 import { reconcile } from '../src/core/reconcile.js';
 import { compileAll } from '../src/core/compile.js';
 import { mergeConfig } from '../src/config/load.js';
@@ -361,5 +362,70 @@ describe('schema gates impact to version 2', () => {
       noReference: [{ repo: 'repo-a', sha: C, classification: 'tooling-or-ci', impact: 'test-only', note: 'CI only' }],
     };
     expect(() => validateNotes(v2WithImpact)).not.toThrow();
+  });
+});
+
+describe('commit-level unknownReference entries', () => {
+  const twoRefs = {
+    ...verified,
+    commits: verified.commits.map((c) => c.sha === B
+      ? { ...c, references: [...c.references, { matcher: 'pr-ref', token: '#45', namespace: 'repo' as const, sources: ['subject' as const], resolvesTo: [] }] }
+      : c)
+  };
+  const withEntries = (...entries: NonNullable<NotesFile['unknownReference']>): NotesFile => ({ ...complete(), unknownReference: entries });
+  const commitLevel = { repo: 'repo-a', sha: B, classification: 'other-release' as const, note: 'shipped in 1.3 as one change' };
+
+  it('covers every unresolved reference on the commit with one entry', () => {
+    expect(() => assertNotesCoverFindings(withEntries(commitLevel), twoRefs)).not.toThrow();
+  });
+
+  it('lets a reference-level entry take precedence and the commit-level entry cover the rest', () => {
+    const notes = withEntries(
+      commitLevel,
+      { repo: 'repo-a', sha: B, matcher: 'pr-ref', token: '#45', classification: 'wrongly-omitted', note: 'should be claimed' }
+    );
+    expect(() => assertNotesCoverFindings(notes, twoRefs)).not.toThrow();
+  });
+
+  it('rejects a commit-level entry when reference-level entries already cover every reference', () => {
+    const notes = withEntries(
+      commitLevel,
+      { repo: 'repo-a', sha: B, matcher: 'ticket-key', token: 'PROJ-9', classification: 'other-release', note: 'shipped in 1.3' },
+      { repo: 'repo-a', sha: B, matcher: 'pr-ref', token: '#45', classification: 'other-release', note: 'shipped in 1.3' }
+    );
+    expect(() => assertNotesCoverFindings(notes, twoRefs)).toThrow(/already cover every unresolved reference/);
+  });
+
+  it('rejects two commit-level entries for one commit', () => {
+    expect(() => assertNotesCoverFindings(withEntries(commitLevel, { ...commitLevel, note: 'again' }), twoRefs))
+      .toThrow(/more than one commit-level entry/);
+  });
+
+  it('rejects a commit-level entry for a commit with no unresolved references', () => {
+    const notes = withEntries(
+      { repo: 'repo-a', sha: B, matcher: 'ticket-key', token: 'PROJ-9', classification: 'other-release', note: 'shipped in 1.3' },
+      { ...commitLevel, sha: A }
+    );
+    expect(() => assertNotesCoverFindings(notes, verified)).toThrow(/commit-level entry for repo-a a{40}/);
+  });
+
+  it('still reports a reference that neither kind of entry covers', () => {
+    expect(() => assertNotesCoverFindings(withEntries(), twoRefs)).toThrow(/missing an entry for repo-a b{40} pr-ref=#45/);
+  });
+
+  it('validates a commit-level entry and rejects a matcher without a token', () => {
+    expect(() => validateNotes(withEntries(commitLevel))).not.toThrow();
+    expect(() => validateNotes(withEntries({ ...commitLevel, matcher: 'pr-ref' }))).toThrow(/token/);
+  });
+
+  it('writes the commit-level note once in the report', () => {
+    const text = renderReport(twoRefs, withEntries(commitLevel));
+    expect(text.split('shipped in 1.3 as one change').length - 1).toBe(2); // Commits table once, Unresolved table once
+    expect(text).toContain('as above (one note for the commit)');
+  });
+
+  it('lists the commit-level classification once in the changelog', () => {
+    const line = renderChangelog(twoRefs, withEntries(commitLevel)).split('\n').find((l) => l.includes('bbbbbbbb'));
+    expect(line).toMatch(/— other-release$/);
   });
 });
