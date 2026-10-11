@@ -283,7 +283,7 @@ The tool claims that the same file inputs, resolved git object graph, and tool v
 | `shipledger init` | Scaffold a config from a preset |
 | `shipledger doctor` | Environment check against locally provable facts: repos present at the resolved paths, named refs resolvable, checkout not shallow, base/head ancestry, CLI/skill version compatibility |
 | `shipledger check` | Config + changeset → `verified-changeset.json` + verdict |
-| `shipledger render <report\|changelog\|release-notes>` | Verified changeset (+ optional notes) → artifact on stdout. Without `--notes` the artifact is marked untriaged; with `--notes` coverage must be exact. `--verify-against-repos --config <path>` additionally re-derives the artifact from git and refuses to render unless it matches |
+| `shipledger render <report\|changelog\|release-notes>` | Verified changeset (+ optional notes) → artifact on stdout. Without `--notes` the artifact is marked untriaged; with `--notes` coverage must be exact. `--verify-against-repos --config <path>` additionally re-derives the artifact from git and refuses to render unless it matches. All three formats escape Markdown in tracker and git text, so a title renders as text, not markup |
 
 ### Exit codes
 

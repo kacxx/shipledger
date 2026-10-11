@@ -339,9 +339,9 @@ describe('control characters in tracker and git text', () => {
     const text = renderReleaseNotes(hostile, hostileNotes);
     expect(text).not.toMatch(UNSAFE);
     const lines = text.split('\n');
-    expect(lines[0]).toBe('## release # fake');
+    expect(lines[0]).toBe('## release \\# fake');
     expect(lines).toContain('### story fake');
-    expect(lines).toContain('* Add?[2J PASS thing (PROJ-1)');
+    expect(lines).toContain('* Add?\\[2J PASS thing (PROJ-1)');
     expect(lines).toContain('* ~Claimed absent~ (PROJ-2) [in-progress?]');
     expect(lines).toContain('* Maybe shipped ?evil (PROJ-3)');
     expect(lines).toContain('* Inside another? (PROJ-4)');
@@ -351,12 +351,12 @@ describe('control characters in tracker and git text', () => {
     const text = renderChangelog(hostile, hostileNotes);
     expect(text).not.toMatch(UNSAFE);
     const lines = text.split('\n');
-    expect(lines[0]).toBe('# release # fake');
-    expect(lines).toContain('- **PROJ-1** Add?[2J PASS thing (2 commits)');
+    expect(lines[0]).toBe('# release \\# fake');
+    expect(lines).toContain('- **PROJ-1** Add?\\[2J PASS thing (2 commits)');
     expect(lines).toContain('- **PROJ-3** Maybe shipped ?evil (2 indeterminate commits)');
-    expect(lines.some((l) => l.startsWith('- `repo-a # fake cccccccc` tidy?]0;t? up'))).toBe(true);
+    expect(lines.some((l) => l.startsWith('- `repo-a # fake cccccccc` tidy?\\]0;t? up'))).toBe(true);
     expect(lines.some((l) => l.startsWith('- **PROJ-2** Claimed absent [in-progress?]'))).toBe(true);
-    expect(lines.some((l) => l.startsWith('- `repo-a` v1 x..v2?[0m — '))).toBe(true);
+    expect(lines.some((l) => l.startsWith('- `repo-a` v1 x..v2?\\[0m — '))).toBe(true);
   });
 
   it('strips unsafe characters from report cells', () => {
@@ -1074,5 +1074,35 @@ describe('renderReport body references waived as context', () => {
     expect(text).not.toContain('context, not claimed');
     expect(text).not.toContain('| Body context |');
     expect(text).toContain('unknown\\-reference');
+  });
+});
+
+describe('Markdown in tracker and git text (changelog and release notes)', () => {
+  const [linked, orphan] = verified.items as [VerifiedChangeset['items'][number], VerifiedChangeset['items'][number]];
+  const marked = {
+    ...verified,
+    items: [
+      { ...linked, title: '[x](https://example.com) *bold* <img src=x>' },
+      { ...orphan, title: '# heading', status: '_done_' }
+    ],
+    commits: verified.commits.map((c) =>
+      c.sha.startsWith('cccc') ? { ...c, subject: 'see [docs](https://example.com) `code`' } : c
+    )
+  } as unknown as VerifiedChangeset;
+
+  it('escapes Markdown in changelog entries so titles and subjects render as text', () => {
+    const text = renderChangelog(marked);
+    expect(text).toContain('\\[x\\]\\(https://example.com\\) \\*bold\\* \\<img src=x\\>');
+    expect(text).toContain('\\# heading');
+    expect(text).toContain('[\\_done\\_]');
+    expect(text).toContain('see \\[docs\\]\\(https://example.com\\) \\`code\\`');
+    expect(text).not.toContain('](https://example.com)');
+  });
+
+  it('escapes Markdown in release-notes entries so titles render as text', () => {
+    const text = renderReleaseNotes(marked);
+    expect(text).toContain('* \\[x\\]\\(https://example.com\\) \\*bold\\* \\<img src=x\\>');
+    expect(text).toContain('~\\# heading~');
+    expect(text).not.toContain('](https://example.com)');
   });
 });
