@@ -30,7 +30,8 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["repo", "sha", "matcher", "token", "classification", "note"],
+        "required": ["repo", "sha", "classification", "note"],
+        "dependencies": { "matcher": ["token"], "token": ["matcher"] },
         "properties": {
           "repo": { "type": "string", "minLength": 1 },
           "sha": { "$ref": "#/definitions/sha" },

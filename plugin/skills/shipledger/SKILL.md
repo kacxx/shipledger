@@ -416,7 +416,7 @@ nothing else:
 | Section | Identifies a finding by | Allowed classifications |
 | --- | --- | --- |
 | `noReference` | `repo`, `sha` | `revert`, `dependency-bump`, `hotfix-already-released`, `tooling-or-ci`, `process-miss`, `security-advisory` |
-| `unknownReference` | `repo`, `sha`, `matcher`, `token` | `other-release`, `typo`, `wrongly-omitted` |
+| `unknownReference` | `repo`, `sha`, `matcher`, `token` (or `repo`, `sha` alone for the whole commit) | `other-release`, `typo`, `wrongly-omitted` |
 | `items` | `item` | `configuration-only`, `documentation-only`, `landed-earlier`, `wrongly-tagged`, `not-done`, `merged-via-another-change` |
 | `ranges` | `repo` | `expected-divergence`, `wrong-base` |
 
@@ -448,7 +448,12 @@ Two classifications need evidence in the note:
   requests" above). Name that commit or change in the note.
 
 An `unknownReference` entry names the full reference tuple rather than just the
-commit, so two unknown references on one commit take separate dispositions. Reuse
+commit, so two unknown references on one commit take separate dispositions. When
+every unresolved reference on a commit shares one disposition (a release-branch
+commit citing `PROJ-12`, `#41` and `#45`), write one entry with only `repo` and
+`sha` instead. An entry that names a reference takes precedence over the commit's
+entry, so give the odd one out its own entry. Don't add a commit-level entry that
+covers nothing: `render` rejects it. Reuse
 the same sentence wherever it genuinely applies — forty dependency bumps may all
 say "routine dependency bump"; that is not a shortcut, it is the truth.
 

@@ -13,22 +13,44 @@ export const referenceKey = (
 
 export interface NoteLookup {
   noReference: Map<string, NoReferenceNote>;
+  /** Reference-level entries, by `referenceKey`. */
   unknownReference: Map<string, UnknownReferenceNote>;
+  /** Commit-level entries (no matcher or token), by `commitKey`. */
+  unknownReferenceByCommit: Map<string, UnknownReferenceNote>;
   items: Map<string, ItemNote>;
   ranges: Map<string, RangeNote>;
 }
 
 export function buildNoteLookup(notes: NotesFile): NoteLookup {
   const lookup: NoteLookup = {
-    noReference: new Map(), unknownReference: new Map(), items: new Map(), ranges: new Map()
+    noReference: new Map(), unknownReference: new Map(), unknownReferenceByCommit: new Map(),
+    items: new Map(), ranges: new Map()
   };
   for (const n of notes.noReference ?? []) lookup.noReference.set(commitKey(n.repo, n.sha), n);
   for (const n of notes.unknownReference ?? []) {
-    lookup.unknownReference.set(referenceKey(n.repo, n.sha, n.matcher, n.token), n);
+    if (n.matcher !== undefined && n.token !== undefined) {
+      lookup.unknownReference.set(referenceKey(n.repo, n.sha, n.matcher, n.token), n);
+    } else {
+      lookup.unknownReferenceByCommit.set(commitKey(n.repo, n.sha), n);
+    }
   }
   for (const n of notes.items ?? []) lookup.items.set(n.item, n);
   for (const n of notes.ranges ?? []) lookup.ranges.set(n.repo, n);
   return lookup;
+}
+
+/**
+ * The note that covers one unresolved reference: its own entry, else its
+ * commit's entry. `level` says which, so a renderer can show a commit-level
+ * note once per commit.
+ */
+export function unknownReferenceNote(
+  lookup: NoteLookup, repo: string, sha: string, matcher: string, token: string
+): { entry: UnknownReferenceNote; level: 'reference' | 'commit' } | undefined {
+  const own = lookup.unknownReference.get(referenceKey(repo, sha, matcher, token));
+  if (own) return { entry: own, level: 'reference' };
+  const shared = lookup.unknownReferenceByCommit.get(commitKey(repo, sha));
+  return shared ? { entry: shared, level: 'commit' } : undefined;
 }
 
 export function assertNotesCoverFindings(notes: NotesFile, verified: VerifiedChangeset): void {
@@ -91,9 +113,41 @@ export function assertNotesCoverFindings(notes: NotesFile, verified: VerifiedCha
     const [repo, sha, matcher, token] = key.split(SEP);
     return `${repo} ${sha} ${matcher}=${token}`;
   };
+  const refEntries = (notes.unknownReference ?? []).filter((n) => n.matcher !== undefined && n.token !== undefined);
+  const commitEntries = (notes.unknownReference ?? []).filter((n) => n.matcher === undefined || n.token === undefined);
+  const refKeyOf = (n: UnknownReferenceNote): string => referenceKey(n.repo, n.sha, n.matcher as string, n.token as string);
+
+  // A reference-level entry takes precedence, so a commit-level entry covers
+  // the commit's unresolved references that no reference-level entry names.
+  const named = new Set(refEntries.map(refKeyOf));
+  const commitOf = (key: string): string => key.split(SEP).slice(0, 2).join(SEP);
+  const leftByCommit = new Map<string, number>();
+  for (const key of unresolved) {
+    if (!named.has(key)) leftByCommit.set(commitOf(key), (leftByCommit.get(commitOf(key)) ?? 0) + 1);
+  }
+  const flaggedCommits = new Set([...unresolved].map(commitOf));
+  const unflaggedCommits = new Set([...unflagged].map(commitOf));
+  const commitCovered = new Set<string>();
+  for (const n of commitEntries) {
+    const key = commitKey(n.repo, n.sha);
+    checkSentence(`unknownReference entry ${showCommit(key)}`, n.note);
+    if (commitCovered.has(key)) {
+      problems.push(`unknownReference has more than one commit-level entry for ${showCommit(key)}`);
+      continue;
+    }
+    commitCovered.add(key);
+    if (!flaggedCommits.has(key)) {
+      problems.push(unflaggedCommits.has(key)
+        ? `unknownReference has a commit-level entry for ${showCommit(key)}, which does not carry an unknown-reference finding`
+        : `unknownReference has a commit-level entry for ${showCommit(key)}, which has no unresolved references in this artifact`);
+    } else if (!leftByCommit.has(key)) {
+      problems.push(`unknownReference has a commit-level entry for ${showCommit(key)}, but reference-level entries already cover every unresolved reference on it`);
+    }
+  }
+
   section(
-    'unknownReference', notes.unknownReference ?? [],
-    (n) => referenceKey(n.repo, n.sha, n.matcher, n.token), showRef, unresolved,
+    'unknownReference', refEntries, refKeyOf, showRef,
+    new Set([...unresolved].filter((key) => named.has(key) || !commitCovered.has(commitOf(key)))),
     (key) => resolved.has(key)
       ? `unknownReference names ${showRef(key)}, a reference that resolved`
       : unflagged.has(key)

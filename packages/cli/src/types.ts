@@ -286,11 +286,16 @@ export interface NoReferenceNote {
   note: string;
 }
 
+/**
+ * Names one unresolved reference by `matcher` and `token`, or, with both
+ * omitted, every unresolved reference on the commit that no reference-level
+ * entry names.
+ */
 export interface UnknownReferenceNote {
   repo: string;
   sha: string;
-  matcher: string;
-  token: string;
+  matcher?: string;
+  token?: string;
   classification: UnknownReferenceClassification;
   impact?: Impact;
   note: string;

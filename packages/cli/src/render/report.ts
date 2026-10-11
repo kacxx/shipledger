@@ -1,4 +1,4 @@
-import { buildNoteLookup, commitKey, referenceKey } from '../notes.js';
+import { buildNoteLookup, commitKey, unknownReferenceNote } from '../notes.js';
 import { oneLine } from './text.js';
 import type {
   CommitResult, CommitResultV1, ItemLink, ItemResult, ItemResultV1, Namespace, NotesFile,
@@ -283,11 +283,17 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
               return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart}) → ${items}`;
             }
             if (waivedHere.has(r)) return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart}) → context, not claimed`;
-            const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart})${noteSuffix(entry)}`;
+            const found = unknownReferenceNote(lookup, c.repo, c.sha, r.matcher, r.token);
+            // A commit-level note is shown once, after the references, below.
+            return `${tokenPart} (${mdEscape(r.matcher)}/${sourcesPart})${found?.level === 'reference' ? noteSuffix(found.entry) : ''}`;
           }).join('; ');
+          const shared = c.references.some((r) => r.resolvesTo.length === 0 && !waivedHere.has(r)
+            && unknownReferenceNote(lookup, c.repo, c.sha, r.matcher, r.token)?.level === 'commit')
+            ? lookup.unknownReferenceByCommit.get(commitKey(c.repo, c.sha))
+            : undefined;
+          const sharedSuffix = shared ? `; commit note${noteSuffix(shared)}` : '';
           const status = c.findings.includes('unknown-reference') ? 'unknown\\-reference' : 'linked';
-          out.push(commitRow(c, status, refDetails, '', links));
+          out.push(commitRow(c, status, refDetails, sharedSuffix, links));
         } else if (c.findings.includes('no-reference')) {
           const entry = lookup.noReference.get(commitKey(c.repo, c.sha));
           out.push(commitRow(c, 'no\\-reference', '', noteSuffix(entry), links));
@@ -364,10 +370,17 @@ export function renderReport(verified: VerifiedChangeset, notes?: NotesFile, ver
       for (const c of commits) {
         const unresolved = c.references.filter((r) => r.resolvesTo.length === 0);
         if (unresolved.length > 0) {
+          let sharedShown = false;
           for (const r of unresolved) {
-            const entry = lookup.unknownReference.get(referenceKey(c.repo, c.sha, r.matcher, r.token));
-            const cls = entry ? classificationCell(entry) : '—';
-            out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${cls} | ${entry ? mdEscape(entry.note) : '—'} |`);
+            const found = unknownReferenceNote(lookup, c.repo, c.sha, r.matcher, r.token);
+            const cls = found ? classificationCell(found.entry) : '—';
+            // A commit-level note is written out on its first row only.
+            let note = found ? mdEscape(found.entry.note) : '—';
+            if (found?.level === 'commit') {
+              note = sharedShown ? 'as above (one note for the commit)' : note;
+              sharedShown = true;
+            }
+            out.push(`| ${linkedSha(links, c.repo, c.sha)} ${mdEscape(c.subject)} | ${linkedRefToken(links, c.repo, r.matcher, r.token, r.namespace)} (${mdEscape(r.matcher)}) | ${r.sources.join(', ')} | ${cls} | ${note} |`);
           }
         }
         if (c.findings.includes('no-reference')) {
