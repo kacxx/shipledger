@@ -37,6 +37,17 @@ describe('validateConfig', () => {
     expect(() => validateConfig({ ...config, ignore: { authors: ['x'] } })).toThrow(/subjects/);
   });
 
+  it('accepts extendIgnore with only subjects or only authors', () => {
+    expect(() => validateConfig({ ...config, extendIgnore: { subjects: ['^Release '] } })).not.toThrow();
+    expect(() => validateConfig({ ...config, extendIgnore: { authors: ['release-bot'] } })).not.toThrow();
+  });
+
+  it('rejects an empty or unknown extendIgnore', () => {
+    expect(() => validateConfig({ ...config, extendIgnore: {} })).toThrow(/extendIgnore/);
+    expect(() => validateConfig({ ...config, extendIgnore: { subjects: [] } })).toThrow(/extendIgnore/);
+    expect(() => validateConfig({ ...config, extendIgnore: { paths: ['x'] } })).toThrow(/extendIgnore/);
+  });
+
   it('reports exit code 2', () => {
     try {
       validateConfig({});

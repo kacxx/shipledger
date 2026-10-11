@@ -161,6 +161,20 @@ describe('runDoctor', () => {
     expect(text).toMatch(/matchers \[preset\]:/);
   });
 
+  it('marks ignore rules added by extendIgnore', () => {
+    repo = healthyRepo();
+    work = mkdtempSync(join(tmpdir(), 'shipledger-doc-'));
+    writeFileSync(join(work, 'config.json'), JSON.stringify({
+      version: 1, preset: 'tracker-keys@1',
+      repos: [{ name: 'repo-a', path: repo.path }],
+      extendIgnore: { subjects: ['^Release '] }
+    }));
+    const out = capture();
+    runDoctor(['--config', join(work, 'config.json')], process.cwd());
+    const text = out.text();
+    expect(text).toMatch(/ignore\s+\[preset\] \[\+ extendIgnore\]:.*\^Release /);
+  });
+
   it('shows body references as strict when a policy override drops the github-oss@3 setting', () => {
     repo = healthyRepo();
     work = mkdtempSync(join(tmpdir(), 'shipledger-doc-'));

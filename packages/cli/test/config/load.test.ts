@@ -41,6 +41,21 @@ describe('mergeConfig', () => {
     expect(merged.ignore.subjects).toEqual(['^WIP']);
   });
 
+  it('adds extendIgnore rules to the preset ignore rules', () => {
+    const merged = mergeConfig({ ...base, extendIgnore: { subjects: ['^\\S+ v\\d+\\.\\d+\\.\\d+: pin '] } }, resolve('/tmp'));
+    expect(merged.ignore.authors).toEqual(['dependabot[bot]']);
+    expect(merged.ignore.subjects).toEqual(['^Merge branch', '^chore\\(deps\\)', '^\\S+ v\\d+\\.\\d+\\.\\d+: pin ']);
+  });
+
+  it('adds extendIgnore rules to an ignore override, dropping exact duplicates', () => {
+    const merged = mergeConfig({
+      ...base,
+      ignore: { authors: ['ci-bot'], subjects: ['^WIP'] },
+      extendIgnore: { authors: ['ci-bot', 'release-bot', 'release-bot'], subjects: ['^WIP', '^Release '] }
+    }, resolve('/tmp'));
+    expect(merged.ignore).toEqual({ authors: ['ci-bot', 'release-bot'], subjects: ['^WIP', '^Release '] });
+  });
+
   it('replaces the whole policy, so an override without bodyReferences is strict', () => {
     const merged = mergeConfig({ ...base, preset: 'github-oss@3', policy: { failOn: [] } }, resolve('/tmp'));
     expect(merged.policy).toEqual({ failOn: [] });
@@ -99,6 +114,12 @@ describe('fingerprintConfig', () => {
     const c = mergeConfig(base, resolve('/tmp'));
     const tampered = { ...c, version: 2 as unknown as 1 };
     expect(fingerprintConfig(c, '0.1.0')).not.toBe(fingerprintConfig(tampered, '0.1.0'));
+  });
+
+  it('changes when extendIgnore adds a rule', () => {
+    const plain = fingerprintConfig(mergeConfig(base, resolve('/tmp')), '1.0.0');
+    const extended = fingerprintConfig(mergeConfig({ ...base, extendIgnore: { subjects: ['^Release '] } }, resolve('/tmp')), '1.0.0');
+    expect(extended).not.toBe(plain);
   });
 
   it('changes when links are added', () => {

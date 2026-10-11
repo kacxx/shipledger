@@ -5,7 +5,7 @@ import { fingerprint } from '../core/canonical.js';
 import { resolvePreset } from './presets.js';
 import { validateConfig } from './validate.js';
 import type {
-  RawConfig, RawLinks, RawReferenceTemplate, ResolvedConfig, ResolvedLinks,
+  IgnoreConfig, RawConfig, RawLinks, RawReferenceTemplate, ResolvedConfig, ResolvedLinks,
   ResolvedReferenceLink, ResolvedRepoLinks
 } from '../types.js';
 
@@ -15,6 +15,8 @@ export interface ConfigOrigins {
   matchers: ConfigOrigin;
   history: ConfigOrigin;
   ignore: ConfigOrigin;
+  /** True when `extendIgnore` added rules to `ignore`. */
+  ignoreExtended: boolean;
   policy: ConfigOrigin;
 }
 
@@ -23,6 +25,7 @@ export function configOrigins(raw: RawConfig): ConfigOrigins {
     matchers: raw.matchers !== undefined ? 'adopter' : 'preset',
     history: raw.history !== undefined ? 'adopter' : 'preset',
     ignore: raw.ignore !== undefined ? 'adopter' : 'preset',
+    ignoreExtended: raw.extendIgnore !== undefined,
     policy: raw.policy !== undefined ? 'adopter' : 'preset'
   };
 }
@@ -146,6 +149,13 @@ export function assertLinksAgainstConfig(links: ResolvedLinks, config: ResolvedC
   }
 }
 
+/** Appends `extendIgnore` to the rules in effect, keeping their order and dropping exact duplicates. */
+function extendIgnore(base: IgnoreConfig, extra: Partial<IgnoreConfig> | undefined): IgnoreConfig {
+  if (!extra) return base;
+  const add = (xs: string[], ys: string[] = []): string[] => [...xs, ...ys.filter((y, i) => !xs.includes(y) && ys.indexOf(y) === i)];
+  return { authors: add(base.authors, extra.authors), subjects: add(base.subjects, extra.subjects) };
+}
+
 export function mergeConfig(
   raw: RawConfig,
   configDir: string,
@@ -163,7 +173,7 @@ export function mergeConfig(
     })),
     matchers: raw.matchers ?? preset.defaults.matchers,
     history: raw.history ?? preset.defaults.history,
-    ignore: raw.ignore ?? preset.defaults.ignore,
+    ignore: extendIgnore(raw.ignore ?? preset.defaults.ignore, raw.extendIgnore),
     policy: raw.policy ?? preset.defaults.policy
   };
   if (raw.links) config.links = resolveLinks(raw.links);

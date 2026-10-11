@@ -133,8 +133,18 @@ key. This keeps matching fully tuple-based — `(matcher, scope, token)` — so 
 pull request number in `repo-a` can never match one in `repo-b`.
 
 **A present config key replaces the preset value entirely**, objects and arrays
-included. There is no deep merge, so an override must be complete. Presets are
-pinned (`tracker-keys@2`) so a CLI upgrade cannot silently change the policy your
+included. There is no deep merge, so an override must be complete. The exception is
+`extendIgnore`, which adds rules to the ignore rules in effect instead of replacing them,
+so a project can ignore its own templated commits and keep following the preset:
+
+```json
+"extendIgnore": { "subjects": ["^\\S+ v\\d+\\.\\d+\\.\\d+: pin "] }
+```
+
+Keep such patterns tight. A loose one such as `^Release` also hides ordinary commits
+that happen to start that way, and an ignored commit never raises a finding.
+
+Presets are pinned (`tracker-keys@2`) so a CLI upgrade cannot silently change the policy your
 release was judged against. Version 2 of both presets ignores references to other
 repositories (`owner/repo#12`), and `github-oss@2` also reads `#12` in commit bodies,
 where many projects write `closes #12`. That means a claim listing pull requests must
