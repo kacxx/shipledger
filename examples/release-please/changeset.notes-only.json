@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "id": "v1.4.0 release notes",
+  "source": {
+    "kind": "github-release",
+    "ref": "https://github.com/example/repo-a/releases/tag/v1.4.0",
+    "fetchedAt": "2026-09-01T01:00:00Z"
+  },
+  "items": [
+    {
+      "id": "example/repo-a#12",
+      "title": "feat: add a summary line to check",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/example/repo-a/pull/12",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#12",
+          "repo": "repo-a"
+        }
+      ]
+    },
+    {
+      "id": "example/repo-a#14",
+      "title": "fix: handle an empty range",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/example/repo-a/pull/14",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#14",
+          "repo": "repo-a"
+        }
+      ]
+    }
+  ],
+  "ranges": [
+    {
+      "repo": "repo-a",
+      "base": "v1.3.0",
+      "head": "v1.4.0"
+    }
+  ]
+}
