@@ -350,7 +350,7 @@ The bundle is **synthetic**, built by a committed script that fixes author, emai
 packages/cli/      published to npm
 plugin/            skill + artifact templates (Claude Code / Cursor plugin)
 fixtures/          deterministic git bundle built by fixtures/make-bundle.sh, plus core test fixtures
-examples/          one config per preset
+examples/          one config per preset, plus a release-please claim walkthrough
 docs/
 ```
 

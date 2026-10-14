@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "preset": "github-oss@3",
+  "repos": [{ "name": "repo-a", "path": "../repo-a" }],
+  "links": {
+    "repos": {
+      "repo-a": {
+        "commit": "https://github.com/example/repo-a/commit/{sha}",
+        "references": {
+          "pr-ref": { "url": "https://github.com/example/repo-a/pull/{token}", "stripPrefix": "#" }
+        }
+      }
+    }
+  }
+}
