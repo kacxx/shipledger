@@ -30,6 +30,29 @@ npx shipledger render report
 `init` writes both files. A changeset is release-specific, so step 2 is the one
 part nothing can scaffold for you — `examples/` has a worked version of each.
 
+## Self-check
+
+`examples/self-check/` runs shipledger on its own v0.4.0 release. The claim is
+the four pull requests in the release notes, checked against `v0.3.5..v0.4.0`
+of this repository. From a clone, after `npm ci && npm run build`:
+
+```bash
+node packages/cli/dist/cli/index.js check \
+  --config examples/self-check/shipledger.config.json \
+  --changeset examples/self-check/changeset.notes-only.json
+```
+
+```
+FAIL  v0.4.0 release notes  unknown-reference=3; items linked 4/4, commits 8, ignored 1
+  unknown-reference  shipledger 176e565  test: give git-backed tests 30 s before timing out (#61)
+  unknown-reference  shipledger f71d610  docs(skill): map questions to commands and list what to leave to the user (#55)
+  unknown-reference  shipledger 04194dc  docs: guide the skill on claims built from generated release notes (#54)
+Wrote verified-changeset.json
+```
+
+The notes hide `test` and `docs` pull requests, but those three still merged in
+the range. `examples/self-check/changeset.json` claims them too and passes.
+
 ## How it works
 
 Matching is deterministic regular expressions over commit text, never a language

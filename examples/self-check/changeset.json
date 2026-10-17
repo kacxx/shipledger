@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "id": "v0.4.0 release notes + hidden sections",
+  "source": {
+    "kind": "github-release",
+    "ref": "https://github.com/kacxx/shipledger/releases/tag/v0.4.0",
+    "fetchedAt": "2026-10-17T01:00:00Z"
+  },
+  "items": [
+    {
+      "id": "kacxx/shipledger#63",
+      "title": "feat: add extendIgnore to add ignore rules without restating the preset",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/kacxx/shipledger/pull/63",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#63",
+          "repo": "shipledger"
+        }
+      ]
+    },
+    {
+      "id": "kacxx/shipledger#64",
+      "title": "feat: allow one unknownReference note to cover a whole commit",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/kacxx/shipledger/pull/64",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#64",
+          "repo": "shipledger"
+        }
+      ]
+    },
+    {
+      "id": "kacxx/shipledger#62",
+      "title": "fix: escape Markdown in changelog and release-notes output",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/kacxx/shipledger/pull/62",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#62",
+          "repo": "shipledger"
+        }
+      ]
+    },
+    {
+      "id": "kacxx/shipledger#57",
+      "title": "fix: include the README in the npm package",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/kacxx/shipledger/pull/57",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#57",
+          "repo": "shipledger"
+        }
+      ]
+    },
+    {
+      "id": "kacxx/shipledger#61",
+      "title": "test: give git-backed tests 30 s before timing out",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/kacxx/shipledger/pull/61",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#61",
+          "repo": "shipledger"
+        }
+      ]
+    },
+    {
+      "id": "kacxx/shipledger#55",
+      "title": "docs(skill): map questions to commands and list what to leave to the user",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/kacxx/shipledger/pull/55",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#55",
+          "repo": "shipledger"
+        }
+      ]
+    },
+    {
+      "id": "kacxx/shipledger#54",
+      "title": "docs: guide the skill on claims built from generated release notes",
+      "type": "pull_request",
+      "status": "merged",
+      "url": "https://github.com/kacxx/shipledger/pull/54",
+      "tokens": [
+        {
+          "matcher": "pr-ref",
+          "token": "#54",
+          "repo": "shipledger"
+        }
+      ]
+    }
+  ],
+  "ranges": [
+    {
+      "repo": "shipledger",
+      "base": "v0.3.5",
+      "head": "v0.4.0"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -12,7 +13,7 @@ import { makeRepo, type FixtureRepo } from './helpers/repo.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-describe.each(['tracker-keys', 'github-oss', 'release-please'])('examples/%s', (name) => {
+describe.each(['tracker-keys', 'github-oss', 'release-please', 'self-check'])('examples/%s', (name) => {
   const dir = join(root, 'examples', name);
   const rawConfig = JSON.parse(readFileSync(join(dir, 'shipledger.config.json'), 'utf8'));
   const rawChangeset = JSON.parse(readFileSync(join(dir, 'changeset.json'), 'utf8'));
@@ -83,6 +84,77 @@ describe('examples/release-please against a matching history', () => {
   });
 
   it('has a schema-valid notes-only changeset', () => {
+    expect(() => validateChangeset(JSON.parse(readFileSync(join(dir, 'changeset.notes-only.json'), 'utf8')))).not.toThrow();
+  });
+});
+
+// The self-check example walks this repository's own v0.3.5..v0.4.0. CI's
+// checkout is shallow and has no tags, so the walk runs only in a full clone.
+function hasFullHistory(): boolean {
+  const git = (args: string[]): string =>
+    execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  try {
+    if (git(['rev-parse', '--is-shallow-repository']) !== 'false') return false;
+    git(['rev-parse', '--verify', '--quiet', 'v0.3.5^{commit}']);
+    git(['rev-parse', '--verify', '--quiet', 'v0.4.0^{commit}']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+describe.skipIf(!hasFullHistory())('examples/self-check against this repository', () => {
+  const dir = join(root, 'examples', 'self-check');
+  let work: string | undefined;
+
+  afterEach(() => {
+    if (work) rmSync(work, { recursive: true, force: true });
+    work = undefined;
+    vi.restoreAllMocks();
+  });
+
+  function check(changeset: string): { code: number; summary: string; out: { verdict: string; violations: { finding: string }[]; commits: { sha: string; findings: string[] }[] } } {
+    let summary = '';
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => { summary += String(chunk); return true; });
+    work = mkdtempSync(join(tmpdir(), 'shipledger-self-check-'));
+    const out = join(work, 'verified-changeset.json');
+    const code = runCheck(['--config', join(dir, 'shipledger.config.json'), '--changeset', join(dir, changeset), '--out', out], process.cwd());
+    return { code, summary, out: JSON.parse(readFileSync(out, 'utf8')) };
+  }
+
+  it('fails the v0.4.0 notes alone on the three hidden pull requests', () => {
+    const { code, summary, out } = check('changeset.notes-only.json');
+    expect(code).toBe(1);
+    expect(out.verdict).toBe('fail');
+    expect(out.violations).toEqual([{ finding: 'unknown-reference', count: 3 }]);
+    expect(out.commits.filter((c) => c.findings.includes('unknown-reference')).map((c) => c.sha.slice(0, 7)))
+      .toEqual(['176e565', 'f71d610', '04194dc']);
+    expect(summary).toContain('FAIL  v0.4.0 release notes  unknown-reference=3; items linked 4/4, commits 8, ignored 1');
+  });
+
+  it('passes once the hidden pull requests are claimed', () => {
+    const { code, summary, out } = check('changeset.json');
+    expect(code).toBe(0);
+    expect(out.verdict).toBe('pass');
+    expect(summary).toContain('PASS  v0.4.0 release notes + hidden sections  items linked 7/7, commits 8, ignored 1');
+  });
+
+  // The READMEs quote this output; every summary line but the path must match.
+  it('matches the output quoted in both READMEs', () => {
+    const quoted = [readFileSync(join(dir, 'README.md'), 'utf8'), readFileSync(join(root, 'README.md'), 'utf8')];
+    for (const changeset of ['changeset.notes-only.json', 'changeset.json']) {
+      const lines = check(changeset).summary.split('\n').filter((l) => l !== '' && !l.startsWith('Wrote '));
+      for (const line of lines) expect(quoted[0]).toContain(line);
+      vi.restoreAllMocks();
+    }
+    const lines = check('changeset.notes-only.json').summary.split('\n').filter((l) => l !== '' && !l.startsWith('Wrote '));
+    for (const line of lines) expect(quoted[1]).toContain(line);
+  });
+});
+
+describe('examples/self-check', () => {
+  it('has a schema-valid notes-only changeset', () => {
+    const dir = join(root, 'examples', 'self-check');
     expect(() => validateChangeset(JSON.parse(readFileSync(join(dir, 'changeset.notes-only.json'), 'utf8')))).not.toThrow();
   });
 });
